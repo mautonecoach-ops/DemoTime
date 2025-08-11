@@ -1,0 +1,32 @@
+// DEMO LEXO – Español (Barrio Sur)
+
+crear_nodo comunidad("Barrio Sur") {
+  confianza: 65,
+  cohesión: 70,
+  resources: 10
+}
+
+crear_nodo persona("Lucía") {
+  habilidades: ["comunicación","diseño"],
+  energía: 85,
+  compromiso: ALTO,
+  confianza: 60,
+  resources: 5
+}
+
+conectar("Lucía","Barrio Sur") {
+  confianza: 60,
+  intensidad: ALTA
+}
+
+intervenir_si (comunidad("Barrio Sur").confianza < 70) {
+  lanzar_iniciativa "Feria de economía colaborativa" {
+    target: "Barrio Sur",
+    trust_boost: 15
+  }
+} contribuir_sino {
+  fortalecer_vínculos("Barrio Sur", intensidad=MEDIA)
+}
+
+medir_impacto comunidad("Barrio Sur") en dimensión("confianza","cohesión","equidad")
+mostrar_red

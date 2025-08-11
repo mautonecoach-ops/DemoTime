@@ -1,0 +1,32 @@
+// DEMO LEXO – English (Barrio Sur)
+
+create_node community("Barrio Sur") {
+  trust: 65,
+  cohesion: 70,
+  resources: 10
+}
+
+create_node person("Lucía") {
+  skills: ["communication","design"],
+  energy: 85,
+  commitment: HIGH,
+  trust: 60,
+  resources: 5
+}
+
+connect("Lucía","Barrio Sur") {
+  trust: 60,
+  intensity: HIGH
+}
+
+intervene_if (community("Barrio Sur").trust < 70) {
+  launch_initiative "Collaborative Economy Fair" {
+    target: "Barrio Sur",
+    trust_boost: 15
+  }
+} contribute_else {
+  strengthen_ties("Barrio Sur", intensity=MEDIUM)
+}
+
+measure_impact community("Barrio Sur") on dimension("trust","cohesion","equity")
+show_network
