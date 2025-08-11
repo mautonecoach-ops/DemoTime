@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block title %}Forms Demo - Flask Demo Platform{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 mb-4">
+        <h1><i class="fas fa-wpforms me-2"></i>Forms Demo</h1>
+        <p class="text-muted">Explore form handling, validation, and data processing with Flask.</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Form Section -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-edit me-2"></i>Sample Contact Form
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('submit_form') }}" id="contactForm">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Full Name *</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                        <div class="form-text">Your full name is required for submission.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email Address *</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                        <div class="form-text">We'll never share your email with anyone else.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Category</label>
+                        <select class="form-select" id="category" name="category">
+                            <option value="general">General Inquiry</option>
+                            <option value="technical">Technical Support</option>
+                            <option value="feedback">Feedback</option>
+                            <option value="demo">Demo Request</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Message</label>
+                        <textarea class="form-control" id="message" name="message" rows="4" 
+                                  placeholder="Tell us about your inquiry..."></textarea>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="terms" required>
+                        <label class="form-check-label" for="terms">
+                            I agree to the demo terms and conditions
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane me-1"></i>Submit Form
+                    </button>
+                    
+                    <button type="button" class="btn btn-outline-secondary ms-2" onclick="clearForm()">
+                        <i class="fas fa-undo me-1"></i>Clear Form
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Form Validation Demo -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-shield-alt me-2"></i>Validation Features
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
+                        <p class="small">Required Fields</p>
+                    </div>
+                    <div class="col-4">
+                        <i class="fas fa-envelope text-info fa-2x mb-2"></i>
+                        <p class="small">Email Validation</p>
+                    </div>
+                    <div class="col-4">
+                        <i class="fas fa-server text-warning fa-2x mb-2"></i>
+                        <p class="small">Server Processing</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Submissions -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list me-2"></i>Recent Submissions
+                </h5>
+                <span class="badge bg-secondary">{{ recent_entries|length }} entries</span>
+            </div>
+            <div class="card-body">
+                {% if recent_entries %}
+                    <div class="list-group list-group-flush">
+                        {% for entry in recent_entries %}
+                        <div class="list-group-item border-0 px-0">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ entry.name }}</h6>
+                                    <p class="mb-1 text-muted small">{{ entry.email }}</p>
+                                    {% if entry.message %}
+                                        <p class="mb-1">{{ entry.message[:100] }}{% if entry.message|length > 100 %}...{% endif %}</p>
+                                    {% endif %}
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>{{ entry.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                    </small>
+                                </div>
+                                <span class="badge bg-{{ 'primary' if entry.category == 'general' else 'info' if entry.category == 'technical' else 'success' if entry.category == 'feedback' else 'warning' }}">
+                                    {{ entry.category }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h6>No submissions yet</h6>
+                        <p class="text-muted">Submit the form above to see entries appear here.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Form Statistics -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-chart-line me-2"></i>Form Statistics
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="text-primary">{{ recent_entries|length }}</h4>
+                        <p class="text-muted small">Recent Entries</p>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-success" id="totalSubmissions">--</h4>
+                        <p class="text-muted small">Total Submissions</p>
+                    </div>
+                </div>
+                <div class="progress mt-3" style="height: 6px;">
+                    <div class="progress-bar bg-primary" role="progressbar" style="width: 75%"></div>
+                </div>
+                <small class="text-muted">Form completion rate: 75%</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Advanced Form Features -->
+<div class="row mt-5">
+    <div class="col-12">
+        <h3><i class="fas fa-cogs me-2"></i>Advanced Form Features</h3>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-magic fa-2x text-primary mb-3"></i>
+                <h6>Dynamic Validation</h6>
+                <p class="text-muted small">Real-time form validation with visual feedback and error messages.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-database fa-2x text-success mb-3"></i>
+                <h6>Data Persistence</h6>
+                <p class="text-muted small">Form submissions are stored in SQLAlchemy database with proper modeling.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-bell fa-2x text-info mb-3"></i>
+                <h6>Flash Messages</h6>
+                <p class="text-muted small">User feedback through Flask's flash messaging system with Bootstrap alerts.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Load form statistics
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('totalSubmissions').textContent = data.total_entries;
+        })
+        .catch(error => {
+            console.error('Error loading stats:', error);
+            document.getElementById('totalSubmissions').textContent = 'Error';
+        });
+});
+
+// Form enhancement functions
+function clearForm() {
+    document.getElementById('contactForm').reset();
+    // Remove any validation classes
+    document.querySelectorAll('.is-valid, .is-invalid').forEach(el => {
+        el.classList.remove('is-valid', 'is-invalid');
+    });
+}
+
+// Real-time validation
+document.getElementById('contactForm').addEventListener('input', function(e) {
+    const field = e.target;
+    if (field.checkValidity()) {
+        field.classList.remove('is-invalid');
+        field.classList.add('is-valid');
+    } else {
+        field.classList.remove('is-valid');
+        field.classList.add('is-invalid');
+    }
+});
+
+// Form submission enhancement
+document.getElementById('contactForm').addEventListener('submit', function(e) {
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const icon = submitBtn.querySelector('i');
+    
+    // Add loading state
+    submitBtn.disabled = true;
+    icon.className = 'fas fa-spinner fa-spin me-1';
+    submitBtn.innerHTML = icon.outerHTML + 'Submitting...';
+});
+</script>
+{% endblock %}

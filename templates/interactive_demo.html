@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Interactive Demo - Flask Demo Platform{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 mb-4">
+        <h1><i class="fas fa-mouse-pointer me-2"></i>Interactive Demo</h1>
+        <p class="text-muted">Experience dynamic content updates and real-time interactions.</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Interactive Controls -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-gamepad me-2"></i>Interactive Controls
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Click Counter -->
+                <div class="mb-4">
+                    <h6><i class="fas fa-hand-pointer me-2"></i>Click Counter</h6>
+                    <p class="text-muted small">Test real-time counter updates with API calls.</p>
+                    <div class="text-center p-3 bg-dark rounded mb-3">
+                        <h2 id="clickCounter" class="text-primary mb-0">{{ click_count }}</h2>
+                        <small class="text-muted">Total Clicks</small>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" onclick="incrementCounter()">
+                            <i class="fas fa-plus me-1"></i>Increment Counter
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="getCounterValue()">
+                            <i class="fas fa-sync me-1"></i>Refresh Value
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Color Picker -->
+                <div class="mb-4">
+                    <h6><i class="fas fa-palette me-2"></i>Dynamic Styling</h6>
+                    <p class="text-muted small">Change page elements dynamically.</p>
+                    <div class="mb-3">
+                        <label for="colorPicker" class="form-label">Theme Color</label>
+                        <input type="color" class="form-control form-control-color" id="colorPicker" value="#0d6efd" onchange="updateThemeColor()">
+                    </div>
+                    <div class="mb-3">
+                        <label for="fontSizeRange" class="form-label">Font Size: <span id="fontSizeValue">16px</span></label>
+                        <input type="range" class="form-range" id="fontSizeRange" min="12" max="24" value="16" onchange="updateFontSize()">
+                    </div>
+                </div>
+
+                <!-- Text Manipulation -->
+                <div class="mb-4">
+                    <h6><i class="fas fa-keyboard me-2"></i>Text Effects</h6>
+                    <div class="mb-3">
+                        <input type="text" class="form-control" id="textInput" placeholder="Type something..." oninput="updateDynamicText()">
+                    </div>
+                    <div class="btn-group d-grid gap-2" role="group">
+                        <button class="btn btn-outline-primary btn-sm" onclick="toggleTextCase()">Toggle Case</button>
+                        <button class="btn btn-outline-success btn-sm" onclick="reverseText()">Reverse Text</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-time Status -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-broadcast-tower me-2"></i>Real-time Status
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <small class="text-muted">Connection:</small>
+                    <span id="connectionStatus" class="badge bg-success ms-2">Connected</span>
+                </div>
+                <div class="mb-2">
+                    <small class="text-muted">Last Update:</small>
+                    <span id="lastUpdate" class="ms-2">--</span>
+                </div>
+                <div class="mb-2">
+                    <small class="text-muted">API Calls:</small>
+                    <span id="apiCallCount" class="ms-2">0</span>
+                </div>
+                <div class="progress mt-3" style="height: 8px;">
+                    <div id="activityProgress" class="progress-bar bg-info" style="width: 0%"></div>
+                </div>
+                <small class="text-muted">Activity Level</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Interactive Display -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-desktop me-2"></i>Interactive Display
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Dynamic Text Display -->
+                <div class="p-4 bg-dark rounded mb-4 text-center">
+                    <h3 id="dynamicText" class="text-white mb-3">Interactive Demo Platform</h3>
+                    <p id="dynamicSubtext" class="text-muted mb-0">Type in the input field to see real-time updates</p>
+                </div>
+
+                <!-- Interactive Grid -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h6><i class="fas fa-th me-2"></i>Interactive Grid</h6>
+                        <p class="text-muted small">Click on any cell to activate it. Double-click to deactivate.</p>
+                        <div id="interactiveGrid" class="d-flex flex-wrap gap-2 p-3 bg-light rounded"></div>
+                    </div>
+                </div>
+
+                <!-- Progress Bars -->
+                <div class="row">
+                    <div class="col-12">
+                        <h6><i class="fas fa-chart-line me-2"></i>Dynamic Progress Indicators</h6>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <small>User Interaction</small>
+                                <small id="interactionPercent">0%</small>
+                            </div>
+                            <div class="progress">
+                                <div id="interactionProgress" class="progress-bar bg-primary" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <small>API Response Time</small>
+                                <small id="responsePercent">0%</small>
+                            </div>
+                            <div class="progress">
+                                <div id="responseProgress" class="progress-bar bg-success" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <small>Demo Completion</small>
+                                <small id="completionPercent">0%</small>
+                            </div>
+                            <div class="progress">
+                                <div id="completionProgress" class="progress-bar bg-info" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interactive Features Showcase -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0">Drag & Drop Zone</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="dropZone" class="border-dashed border-2 border-secondary p-4 text-center rounded">
+                            <i class="fas fa-cloud-upload-alt fa-2x text-muted mb-2"></i>
+                            <p class="text-muted mb-0">Drag text or files here</p>
+                            <small class="text-muted">(Demo only - no actual upload)</small>
+                        </div>
+                        <div id="dropResult" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0">Keyboard Shortcuts</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <kbd>Ctrl</kbd> + <kbd>K</kbd> - Increment Counter
+                        </div>
+                        <div class="mb-2">
+                            <kbd>Ctrl</kbd> + <kbd>R</kbd> - Refresh Data
+                        </div>
+                        <div class="mb-2">
+                            <kbd>Ctrl</kbd> + <kbd>T</kbd> - Toggle Theme
+                        </div>
+                        <div class="mb-2">
+                            <kbd>Esc</kbd> - Reset All
+                        </div>
+                        <div id="keyboardFeedback" class="mt-3 text-muted small">Press any shortcut to see feedback</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript Features -->
+<div class="row mt-5">
+    <div class="col-12">
+        <h3><i class="fas fa-code me-2"></i>JavaScript Features Demonstrated</h3>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-sync-alt fa-2x text-primary mb-3"></i>
+                <h6>Real-time Updates</h6>
+                <p class="text-muted small">Fetch API calls to update content dynamically without page refresh.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-paint-brush fa-2x text-success mb-3"></i>
+                <h6>Dynamic Styling</h6>
+                <p class="text-muted small">CSS manipulation and theme changes through JavaScript interaction.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-hand-paper fa-2x text-info mb-3"></i>
+                <h6>Event Handling</h6>
+                <p class="text-muted small">Mouse, keyboard, and drag events with visual feedback and validation.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-chart-area fa-2x text-warning mb-3"></i>
+                <h6>Data Visualization</h6>
+                <p class="text-muted small">Progress bars, counters, and visual indicators updated in real-time.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/interactive.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+
+{% block title %}API Demo - Flask Demo Platform{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 mb-4">
+        <h1><i class="fas fa-plug me-2"></i>API Demo</h1>
+        <p class="text-muted">Test REST API endpoints and explore JSON responses.</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- API Endpoints -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-server me-2"></i>Available Endpoints
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">GET /api/stats</h6>
+                                <p class="mb-1 text-muted">Get application statistics</p>
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="testEndpoint('/api/stats')">
+                                Test
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">GET /api/entries</h6>
+                                <p class="mb-1 text-muted">Get paginated form entries</p>
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="testEndpoint('/api/entries')">
+                                Test
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">GET /api/entries?page=1&per_page=5</h6>
+                                <p class="mb-1 text-muted">Get entries with pagination</p>
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="testEndpoint('/api/entries?page=1&per_page=5')">
+                                Test
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">GET /api/counter/get</h6>
+                                <p class="mb-1 text-muted">Get current counter value</p>
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="testEndpoint('/api/counter/get')">
+                                Test
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">GET /api/counter/increment</h6>
+                                <p class="mb-1 text-muted">Increment counter and return new value</p>
+                            </div>
+                            <button class="btn btn-sm btn-outline-success" onclick="testEndpoint('/api/counter/increment')">
+                                Test
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom API Tester -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-tools me-2"></i>Custom API Tester
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="apiUrl" class="form-label">API Endpoint</label>
+                    <div class="input-group">
+                        <span class="input-group-text">GET</span>
+                        <input type="text" class="form-control" id="apiUrl" placeholder="/api/stats">
+                        <button class="btn btn-primary" onclick="customApiTest()">
+                            <i class="fas fa-play me-1"></i>Test
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="prettyJson" checked>
+                    <label class="form-check-label" for="prettyJson">
+                        Pretty print JSON response
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Response -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-code me-2"></i>API Response
+                </h5>
+                <div>
+                    <span id="statusBadge" class="badge bg-secondary">Ready</span>
+                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="clearResponse()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="apiResponse" class="bg-dark p-3 rounded" style="min-height: 300px; font-family: 'Courier New', monospace; font-size: 0.9em;">
+                    <div class="text-muted text-center" style="margin-top: 100px;">
+                        <i class="fas fa-play fa-2x mb-3"></i>
+                        <p>Click "Test" on any endpoint to see the JSON response here.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Response Headers -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-list me-2"></i>Response Headers
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="responseHeaders" class="small text-muted">
+                    No headers to display. Make an API call first.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- API Documentation -->
+<div class="row mt-5">
+    <div class="col-12">
+        <h3><i class="fas fa-book me-2"></i>API Documentation</h3>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Response Formats</h6>
+            </div>
+            <div class="card-body">
+                <h6>Success Response:</h6>
+                <pre class="bg-dark p-2 rounded small"><code>{
+  "status": "success",
+  "data": { ... },
+  "timestamp": "2023-..."
+}</code></pre>
+                
+                <h6 class="mt-3">Error Response:</h6>
+                <pre class="bg-dark p-2 rounded small"><code>{
+  "error": "Error message",
+  "status": 400
+}</code></pre>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Status Codes</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6">
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="badge bg-success me-2">200</span>
+                            <span class="small">Success</span>
+                        </div>
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="badge bg-warning me-2">400</span>
+                            <span class="small">Bad Request</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="badge bg-danger me-2">404</span>
+                            <span class="small">Not Found</span>
+                        </div>
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="badge bg-danger me-2">500</span>
+                            <span class="small">Server Error</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Live API Stats -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-chart-line me-2"></i>Live API Statistics
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <h4 id="apiCallCount" class="text-primary">0</h4>
+                        <p class="text-muted small">API Calls Made</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 id="successCount" class="text-success">0</h4>
+                        <p class="text-muted small">Successful Calls</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 id="errorCount" class="text-danger">0</h4>
+                        <p class="text-muted small">Failed Calls</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 id="avgResponseTime" class="text-info">0ms</h4>
+                        <p class="text-muted small">Avg Response Time</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let apiStats = {
+    totalCalls: 0,
+    successCalls: 0,
+    errorCalls: 0,
+    totalResponseTime: 0
+};
+
+async function testEndpoint(endpoint) {
+    const startTime = performance.now();
+    apiStats.totalCalls++;
+    
+    updateStatusBadge('loading', 'Loading...');
+    
+    try {
+        const response = await fetch(endpoint);
+        const endTime = performance.now();
+        const responseTime = Math.round(endTime - startTime);
+        
+        apiStats.totalResponseTime += responseTime;
+        
+        if (response.ok) {
+            apiStats.successCalls++;
+            updateStatusBadge('success', `${response.status} OK`);
+        } else {
+            apiStats.errorCalls++;
+            updateStatusBadge('error', `${response.status} Error`);
+        }
+        
+        const data = await response.json();
+        displayResponse(data, response.status, responseTime);
+        displayHeaders(response.headers);
+        
+    } catch (error) {
+        const endTime = performance.now();
+        const responseTime = Math.round(endTime - startTime);
+        
+        apiStats.errorCalls++;
+        apiStats.totalResponseTime += responseTime;
+        
+        updateStatusBadge('error', 'Network Error');
+        displayResponse({error: error.message}, 0, responseTime);
+    }
+    
+    updateApiStats();
+}
+
+function customApiTest() {
+    const url = document.getElementById('apiUrl').value.trim();
+    if (!url) {
+        alert('Please enter an API endpoint');
+        return;
+    }
+    
+    const fullUrl = url.startsWith('/') ? url : '/' + url;
+    testEndpoint(fullUrl);
+}
+
+function displayResponse(data, status, responseTime) {
+    const responseDiv = document.getElementById('apiResponse');
+    const prettyJson = document.getElementById('prettyJson').checked;
+    
+    let jsonString;
+    if (prettyJson) {
+        jsonString = JSON.stringify(data, null, 2);
+    } else {
+        jsonString = JSON.stringify(data);
+    }
+    
+    const statusColor = status >= 200 && status < 300 ? 'text-success' : 'text-danger';
+    
+    responseDiv.innerHTML = `
+        <div class="mb-2">
+            <span class="text-muted">Status:</span> 
+            <span class="${statusColor}">${status}</span>
+            <span class="text-muted ms-3">Response Time:</span> 
+            <span class="text-info">${responseTime}ms</span>
+        </div>
+        <hr>
+        <pre class="text-light mb-0"><code>${jsonString}</code></pre>
+    `;
+}
+
+function displayHeaders(headers) {
+    const headersDiv = document.getElementById('responseHeaders');
+    let headerHtml = '';
+    
+    for (let [key, value] of headers.entries()) {
+        headerHtml += `<div><strong>${key}:</strong> ${value}</div>`;
+    }
+    
+    headersDiv.innerHTML = headerHtml || 'No headers available';
+}
+
+function updateStatusBadge(type, text) {
+    const badge = document.getElementById('statusBadge');
+    
+    badge.className = 'badge bg-secondary';
+    
+    if (type === 'loading') {
+        badge.className = 'badge bg-warning';
+    } else if (type === 'success') {
+        badge.className = 'badge bg-success';
+    } else if (type === 'error') {
+        badge.className = 'badge bg-danger';
+    }
+    
+    badge.textContent = text;
+}
+
+function clearResponse() {
+    document.getElementById('apiResponse').innerHTML = `
+        <div class="text-muted text-center" style="margin-top: 100px;">
+            <i class="fas fa-play fa-2x mb-3"></i>
+            <p>Click "Test" on any endpoint to see the JSON response here.</p>
+        </div>
+    `;
+    
+    document.getElementById('responseHeaders').innerHTML = 'No headers to display. Make an API call first.';
+    updateStatusBadge('ready', 'Ready');
+}
+
+function updateApiStats() {
+    document.getElementById('apiCallCount').textContent = apiStats.totalCalls;
+    document.getElementById('successCount').textContent = apiStats.successCalls;
+    document.getElementById('errorCount').textContent = apiStats.errorCalls;
+    
+    const avgTime = apiStats.totalCalls > 0 ? 
+        Math.round(apiStats.totalResponseTime / apiStats.totalCalls) : 0;
+    document.getElementById('avgResponseTime').textContent = avgTime + 'ms';
+}
+
+// Allow Enter key in custom API tester
+document.getElementById('apiUrl').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        customApiTest();
+    }
+});
+</script>
+{% endblock %}

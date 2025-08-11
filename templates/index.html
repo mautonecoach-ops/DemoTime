@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Flask Demo Platform{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card bg-primary text-white mb-4">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h1 class="card-title h3 mb-2">
+                            <i class="fas fa-rocket me-2"></i>Welcome to Flask Demo Platform
+                        </h1>
+                        <p class="card-text">
+                            Explore various web development concepts through interactive demos and examples.
+                            This platform showcases Flask's capabilities with forms, APIs, data visualization, and dynamic interactions.
+                        </p>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-code fa-4x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Overview -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-database fa-2x text-info mb-2"></i>
+                <h4 class="card-title">{{ total_entries }}</h4>
+                <p class="card-text text-muted">Total Form Submissions</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-tags fa-2x text-success mb-2"></i>
+                <h4 class="card-title">{{ categories|length }}</h4>
+                <p class="card-text text-muted">Active Categories</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-flask fa-2x text-warning mb-2"></i>
+                <h4 class="card-title">5</h4>
+                <p class="card-text text-muted">Demo Sections</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Demo Sections -->
+<div class="row">
+    <div class="col-12 mb-4">
+        <h2><i class="fas fa-puzzle-piece me-2"></i>Demo Sections</h2>
+        <p class="text-muted">Click on any section below to explore specific web development concepts:</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Forms Demo -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 demo-card">
+            <div class="card-body d-flex flex-column">
+                <div class="text-center mb-3">
+                    <i class="fas fa-wpforms fa-3x text-primary"></i>
+                </div>
+                <h5 class="card-title">Forms Demo</h5>
+                <p class="card-text flex-grow-1">
+                    Explore form handling, validation, and data processing. Submit forms and see real-time updates.
+                </p>
+                <a href="{{ url_for('forms_demo') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-right me-1"></i>Try Forms Demo
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Demo -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 demo-card">
+            <div class="card-body d-flex flex-column">
+                <div class="text-center mb-3">
+                    <i class="fas fa-plug fa-3x text-success"></i>
+                </div>
+                <h5 class="card-title">API Demo</h5>
+                <p class="card-text flex-grow-1">
+                    Test REST API endpoints, view JSON responses, and understand API integration patterns.
+                </p>
+                <a href="{{ url_for('api_demo') }}" class="btn btn-outline-success">
+                    <i class="fas fa-arrow-right me-1"></i>Explore APIs
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Demo -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 demo-card">
+            <div class="card-body d-flex flex-column">
+                <div class="text-center mb-3">
+                    <i class="fas fa-chart-bar fa-3x text-info"></i>
+                </div>
+                <h5 class="card-title">Charts Demo</h5>
+                <p class="card-text flex-grow-1">
+                    Visualize data with interactive charts and graphs using Chart.js integration.
+                </p>
+                <a href="{{ url_for('charts_demo') }}" class="btn btn-outline-info">
+                    <i class="fas fa-arrow-right me-1"></i>View Charts
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Interactive Demo -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 demo-card">
+            <div class="card-body d-flex flex-column">
+                <div class="text-center mb-3">
+                    <i class="fas fa-mouse-pointer fa-3x text-warning"></i>
+                </div>
+                <h5 class="card-title">Interactive Demo</h5>
+                <p class="card-text flex-grow-1">
+                    Experience dynamic content updates, real-time interactions, and JavaScript integration.
+                </p>
+                <a href="{{ url_for('interactive_demo') }}" class="btn btn-outline-warning">
+                    <i class="fas fa-arrow-right me-1"></i>Get Interactive
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Real-time Features -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 demo-card">
+            <div class="card-body d-flex flex-column">
+                <div class="text-center mb-3">
+                    <i class="fas fa-bolt fa-3x text-danger"></i>
+                </div>
+                <h5 class="card-title">Real-time Updates</h5>
+                <p class="card-text flex-grow-1">
+                    See how data updates in real-time across different sections and browser sessions.
+                </p>
+                <button class="btn btn-outline-danger" onclick="refreshStats()">
+                    <i class="fas fa-sync-alt me-1"></i>Refresh Stats
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Documentation -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 demo-card">
+            <div class="card-body d-flex flex-column">
+                <div class="text-center mb-3">
+                    <i class="fas fa-book fa-3x text-secondary"></i>
+                </div>
+                <h5 class="card-title">Code Examples</h5>
+                <p class="card-text flex-grow-1">
+                    View the source code and understand how each demo section is implemented.
+                </p>
+                <button class="btn btn-outline-secondary" onclick="toggleCodeInfo()">
+                    <i class="fas fa-code me-1"></i>View Code Info
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Category Breakdown -->
+{% if categories %}
+<div class="row mt-5">
+    <div class="col-12">
+        <h3><i class="fas fa-chart-pie me-2"></i>Submission Categories</h3>
+        <div class="row">
+            {% for category, count in categories %}
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ category.title() }}</h5>
+                        <h3 class="text-primary">{{ count }}</h3>
+                        <small class="text-muted">submissions</small>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Code Info Modal -->
+<div class="modal fade" id="codeInfoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-code me-2"></i>Code Implementation Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="accordion" id="codeAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#backend">
+                                Backend (Flask)
+                            </button>
+                        </h2>
+                        <div id="backend" class="accordion-collapse collapse show" data-bs-parent="#codeAccordion">
+                            <div class="accordion-body">
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-check text-success me-2"></i>Flask routes with proper error handling</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>SQLAlchemy models for data persistence</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>RESTful API endpoints</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Form validation and processing</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Session management and security</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#frontend">
+                                Frontend (HTML/JS)
+                            </button>
+                        </h2>
+                        <div id="frontend" class="accordion-collapse collapse" data-bs-parent="#codeAccordion">
+                            <div class="accordion-body">
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-check text-success me-2"></i>Bootstrap 5 responsive design</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Jinja2 templating with inheritance</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Vanilla JavaScript for interactions</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Chart.js for data visualization</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Progressive enhancement principles</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function refreshStats() {
+    // Simulate stats refresh
+    const btn = event.target.closest('button');
+    const icon = btn.querySelector('i');
+    
+    icon.classList.add('fa-spin');
+    btn.disabled = true;
+    
+    setTimeout(() => {
+        location.reload();
+    }, 1000);
+}
+
+function toggleCodeInfo() {
+    const modal = new bootstrap.Modal(document.getElementById('codeInfoModal'));
+    modal.show();
+}
+</script>
+{% endblock %}
