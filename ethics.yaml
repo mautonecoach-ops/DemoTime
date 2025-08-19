@@ -1,0 +1,8 @@
+min_avg_trust: 90.0
+low_node_trust: 55.0
+low_edge_trust: 50.0
+min_node_degree: 1
+min_resources_per_node: 2.0
+max_resource_share: 0.30
+max_edge_trust_drop: 20.0
+max_gini_increase_pct: 10.0

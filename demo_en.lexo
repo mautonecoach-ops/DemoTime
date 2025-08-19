@@ -1,5 +1,6 @@
-// DEMO LEXO – English (Barrio Sur)
+# DEMO LEXO – English (Barrio Sur)
 
+# 1) Declarations
 create_node community("Barrio Sur") {
   trust: 65,
   cohesion: 70,
@@ -14,11 +15,14 @@ create_node person("Lucía") {
   resources: 5
 }
 
-connect("Lucía","Barrio Sur") {
-  trust: 60,
-  intensity: HIGH
-}
+create_node person("Mateo") { trust: 62, resources: 4 }
 
+# 2) Initial relations
+connect("Lucía","Barrio Sur") { trust: 60, intensity: HIGH }
+connect("Mateo","Barrio Sur") { trust: 60, intensity: MEDIUM }
+connect("Mateo","Lucía")      { trust: 58, intensity: LOW }
+
+# 3) Conditional intervention
 intervene_if (community("Barrio Sur").trust < 70) {
   launch_initiative "Collaborative Economy Fair" {
     target: "Barrio Sur",
@@ -28,5 +32,13 @@ intervene_if (community("Barrio Sur").trust < 70) {
   strengthen_ties("Barrio Sur", intensity=MEDIUM)
 }
 
-measure_impact community("Barrio Sur") on dimension("trust","cohesion","equity")
+# 4) Extra actions from linter
+# Reduce inequity:
+redistribute_resources("Lucía","Mateo") { fraction: 0.25, min_left: 2 }
+
+# Restore trust in the link:
+care_network("Barrio Sur", intensity=HIGH, mitigation_plan="neighborhood assemblies")
+
+# 5) Metrics & visual
+measure_impact community("Barrio Sur") in dimension("trust","cohesion","equity")
 show_network

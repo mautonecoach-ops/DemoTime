@@ -1,2 +1,7 @@
 networkx
 matplotlib
+flask
+flask-sqlalchemy
+sqlalchemy
+werkzeug
+PyYAML

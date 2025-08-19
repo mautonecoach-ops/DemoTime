@@ -1,32 +1,50 @@
-// DEMO LEXO – Español (Barrio Sur)
+// DEMO LEXO — Español (Caso único: “Barrio Sur”)
 
-crear_nodo comunidad("Barrio Sur") {
-  confianza: 65,
-  cohesión: 70,
-  resources: 10
-}
+// ===== Nodos =====
+crear_nodo comunidad("Barrio Sur") { confianza: 65, resources: 20 }
+crear_nodo persona("Lucía") { confianza: 60, energía: 80, resources: 2 }
+crear_nodo persona("Mateo") { confianza: 62, energía: 70, resources: 2 }
+crear_nodo persona("Ayla")  { confianza: 50, energía: 65, resources: 1 }
+crear_nodo persona("Bruno") { confianza: 52, energía: 60, resources: 1 }
+crear_nodo persona("Ciro")  { confianza: 48, energía: 55, resources: 1 }
 
-crear_nodo persona("Lucía") {
-  habilidades: ["comunicación","diseño"],
-  energía: 85,
-  compromiso: ALTO,
-  confianza: 60,
-  resources: 5
-}
+// ===== Enlaces con triángulos (cohesión) =====
+conectar("Ayla","Barrio Sur")  { confianza: 55, intensidad: MEDIA }
+conectar("Bruno","Barrio Sur") { confianza: 55, intensidad: MEDIA }
+conectar("Ayla","Bruno")       { confianza: 52, intensidad: BAJA }
 
-conectar("Lucía","Barrio Sur") {
-  confianza: 60,
-  intensidad: ALTA
-}
+conectar("Ciro","Barrio Sur")  { confianza: 55, intensidad: MEDIA }
+conectar("Ciro","Ayla")        { confianza: 50, intensidad: MEDIA }
+conectar("Bruno","Lucía")      { confianza: 55, intensidad: MEDIA }
 
+conectar("Lucía","Barrio Sur") { confianza: 60, intensidad: ALTA }
+conectar("Mateo","Barrio Sur") { confianza: 60, intensidad: MEDIA }
+conectar("Lucía","Mateo")      { confianza: 58, intensidad: BAJA }
+
+// ===== Política condicional (sube confianza de la comunidad) =====
 intervenir_si (comunidad("Barrio Sur").confianza < 70) {
-  lanzar_iniciativa "Feria de economía colaborativa" {
+  lanzar_iniciativa "Encuentro vecinal" {
     target: "Barrio Sur",
-    trust_boost: 15
+    trust_boost: 18
   }
 } contribuir_sino {
   fortalecer_vínculos("Barrio Sur", intensidad=MEDIA)
 }
 
+// ===== Acciones focalizadas (confianza + equidad) =====
+fortalecer_vínculos("Ayla")  { intensidad: ALTA }
+fortalecer_vínculos("Bruno") { intensidad: MEDIA }
+fortalecer_vínculos("Ciro")  { intensidad: MEDIA }
+
+
+cuidar_red("Barrio Sur", intensidad=ALTA, plan_mitigación="asambleas y mentorías")
+
+// Redistribución equilibrada: total transferido ≈ 9–10, dejando min_left=10 en la comunidad
+redistribuir_recursos("Barrio Sur","Ayla")  { fraction: 0.20, min_left: 10 }
+redistribuir_recursos("Barrio Sur","Bruno") { fraction: 0.15, min_left: 10 }
+redistribuir_recursos("Barrio Sur","Ciro")  { fraction: 0.15, min_left: 10 }
+
+// ===== Métricas y visual =====
 medir_impacto comunidad("Barrio Sur") en dimensión("confianza","cohesión","equidad")
 mostrar_red
+

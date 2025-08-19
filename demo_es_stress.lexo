@@ -1,0 +1,37 @@
+// DEMO LEXO – Stress test (Barrio Sur II)
+
+// 1) Declaraciones (distribución muy desigual y confianzas bajas)
+crear_nodo comunidad("Barrio Sur II") { confianza: 50, cohesión: 20, resources: 18 }
+crear_nodo persona("Ayla")  { confianza: 45, resources: 1 }
+crear_nodo persona("Bruno") { confianza: 48, resources: 1 }
+crear_nodo persona("Ciro")  { confianza: 52, resources: 0 }
+
+# 2) Pocas conexiones (cohesión baja, posibles nodos casi aislados)
+conectar("Ayla","Barrio Sur II")  { confianza: 45, intensidad: BAJA }
+conectar("Bruno","Barrio Sur II") { confianza: 48, intensidad: BAJA }
+// Ciro arranca sin conexiones → casi aislado
+
+# 3) Condicional (debería entrar por confianza < 65)
+intervenir_si (comunidad("Barrio Sur II").confianza < 65) {
+  lanzar_iniciativa "Mateada comunitaria" { target: "Barrio Sur II", trust_boost: 10 }
+} contribuir_sino {
+  fortalecer_vínculos("Barrio Sur II", intensidad=MEDIA)
+}
+
+# 4) Acciones que el linter suele sugerir (equidad + cuidado de vínculos + conectar aislados)
+redistribuir_recursos("Barrio Sur II","Ciro") { fraction: 0.25, min_left: 8 }
+cuidar_red("Barrio Sur II", intensity=ALTA, plan_mitigación="asambleas + mentorías")
+conectar("Ciro","Ayla") { confianza: 50, intensidad: MEDIA }
+
+// Asegurar triángulos en el componente principal
+conectar("Ayla","Barrio Sur II")  { confianza: 55, intensidad: MEDIA }
+conectar("Bruno","Barrio Sur II") { confianza: 55, intensidad: MEDIA }
+conectar("Ayla","Bruno")          { confianza: 52, intensidad: BAJA }
+
+conectar("Ciro","Barrio Sur II")  { confianza: 55, intensidad: MEDIA }
+conectar("Ciro","Ayla")           { confianza: 50, intensidad: MEDIA }
+
+
+# 5) Métrica y visual
+medir_impacto comunidad("Barrio Sur II") en dimensión("confianza","cohesión","equidad")
+mostrar_red
