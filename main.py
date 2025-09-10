@@ -2213,29 +2213,30 @@ def main():
     print(json.dumps(m, ensure_ascii=False, indent=2))
 
 
-# main.py (hook mínimo)
+# main.py — integración del Blocker v0.2 (robusto, fail-fast)
 from lexo.blocker import Blocker, BlockerConfig, BlockerPolicy
 
 def get_current_metrics():
     """
-    TODO: reemp. por tus métricas reales del runtime LEXO.
-    Deben estar en [0,100]. Si falta alguna, el Blocker asume 0.
+    TODO: Reemplazar con métricas reales de tu runtime.
+    Deben estar en [0, 100]. Si falta alguna, el Blocker la asume 0.
     """
-    # Ejemplo temporal:
+    # Placeholder de ejemplo — ajustá para probar OK/bloqueo:
     return {"trust": 62.5, "cohesion": 28.0, "equity": 71.0}
 
 def critical_action():
+    # TODO: reemplazar por la acción realmente crítica (ejecución, efectos en sistema, etc.)
     print(">> Ejecutando acción crítica del runtime...")
 
 if __name__ == "__main__":
-    # Política razonable por defecto (pesando más cohesión)
+    # Política robusta por defecto (más peso a cohesión + score mínimo)
     policy = BlockerPolicy(
         min={"trust": 50, "cohesion": 35, "equity": 50},
         weights={"trust": 0.3, "cohesion": 0.4, "equity": 0.3},
-        require_fail_count=1,     # bloquear si 1 métrica falla el mínimo
-        score_threshold=70.0,     # y exigir score ponderado ≥ 70
+        require_fail_count=1,     # bloquea si al menos 1 métrica < mínimo
+        score_threshold=70.0,     # y exige score ponderado ≥ 70
     )
-    cfg = BlockerConfig(policy=policy, dry_run=False)
+    cfg = BlockerConfig(policy=policy, dry_run=False)  # poné True para calibrar sin bloquear
     blocker = Blocker(config=cfg)
 
     metrics = get_current_metrics()
@@ -2243,9 +2244,8 @@ if __name__ == "__main__":
 
     if block:
         print("🚫 BLOQUEADO:", "; ".join(reasons))
-        raise SystemExit(1)  # fail-fast: aborta ejecución
+        raise SystemExit(1)  # fail-fast: aborta la ejecución
     else:
         if reasons:
             print("⚠️  AVISO:", "; ".join(reasons))
         critical_action()
-
