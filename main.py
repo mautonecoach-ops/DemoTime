@@ -12,12 +12,18 @@ import os
 import re
 import json
 import math
-import argparse
 import networkx as nx
 import matplotlib
 matplotlib.use("Agg")  # evita crash por display en Replit
 import matplotlib.pyplot as plt
 import warnings
+import argparse
+import hashlib
+
+parser = argparse.ArgumentParser()
+parser.add_argument("file", help="Archivo fuente .lexo")
+parser.add_argument("--lang", default="es", help="Idioma")
+args = parser.parse_args()
 
 warnings.filterwarnings(
     "ignore",
@@ -43,7 +49,7 @@ def apply_ethics_yaml_once(path="ethics.yaml"):
             data = yaml.safe_load(f) or {}
         if isinstance(data, dict) and data:
             ETHICS.update(data)
-            print("[ETHICS] Umbrales cargados desde ethics.yaml")
+            
     except Exception:
         pass
     ETHICS_LOADED = True
@@ -302,8 +308,6 @@ def evaluate_ethics(rt, start_snap, final_snap, start_metrics, final_metrics):
 # - reconoce bloques por llaves
 # - reconoce las sentencias clave por prefix
 # =========================
-import re
-
 _bool_like = {"true": True, "false": False, "TRUE": True, "FALSE": False}
 _ident_like = {"ALTO": "HIGH", "MEDIA": "MEDIUM", "BAJA": "LOW", "ALTA": "HIGH",
                "HIGH":"HIGH","MEDIUM":"MEDIUM","LOW":"LOW"}
@@ -792,6 +796,8 @@ def parse_program(src: str):
         i += 1
     
     return ast
+with open(args.file, "r", encoding="utf-8") as f:
+    source = f.read()
 
 norm = normalize_source(source, args.lang)   # <- DEBE existir esta función y devolver str
 ast = parse_program(norm)
@@ -1066,6 +1072,8 @@ class Runtime:
 # =========================
 # EJECUCIÓN DEL AST
 # =========================
+final_metrics = None
+
 def execute(rt: Runtime, ast: AST, finalize: bool = True):
     # 1) Declaraciones
     for kind, type_name, name, props in ast.decls:
@@ -1075,7 +1083,7 @@ def execute(rt: Runtime, ast: AST, finalize: bool = True):
     # 2) Snapshot/métricas INICIALES (para este nivel)
     start_m    = rt.measure()
     start_snap = snapshot_state(rt)
-
+    
     # 3) Acciones
     for act in ast.actions:
         tag = act[0]
@@ -1136,7 +1144,9 @@ def execute(rt: Runtime, ast: AST, finalize: bool = True):
             metrics = rt.measure()
             sel = {k: metrics[k] for k in dims if k in metrics}
             print(">> Impacto:", json.dumps(sel, ensure_ascii=False))
+            rt.final_metrics = metrics            # ⬅️ GUARDAR AQUÍ
             continue
+
 
         if tag == "SHOW_NETWORK":
             rt.show_network(title="LEXO v0.1 – Red")
@@ -1150,6 +1160,64 @@ def execute(rt: Runtime, ast: AST, finalize: bool = True):
         print_alerts(alerts)
         save_report_json(final_m, alerts, path="report.json")
         save_report_csv(final_m, alerts, path="report.csv")
+
+# main.py
+from core_helpers import (
+    begin_run, end_run,
+    load_ethics_thresholds, blocker_decision,
+    write_blockade_summary, append_changelog,
+    ensure_whatif_never_mutates,
+)
+
+def execute_final(rt, run_id, save_network=True):
+    # 1) recuperar métricas finales del runtime
+    final_metrics = getattr(rt, "final_metrics", None)
+
+    # 2) validar que existan métricas
+    if final_metrics is None:
+        print("[EXEC_FINAL] No hay métricas finales; abortando.")
+        return ("BLOCKED", [("metrics", 0, "present")])
+
+    # 3) (placeholder) asegurar que WHAT_IF no muta estado real
+    ensure_whatif_never_mutates(rt)
+
+    # 4) cargar umbrales y decidir
+    thresholds = load_ethics_thresholds("ethics.yaml")
+    print("[ETHICS] Umbrales cargados:", thresholds)
+    fails = blocker_decision(final_metrics, thresholds)
+
+    # 5) persistir artefactos de cierre
+    write_blockade_summary(run_id, final_metrics, thresholds, fails)
+    append_changelog("BLOCKED" if fails else "OK", final_metrics, fails, "CHANGELOG.md")
+
+    # 6) devolver estado para que main() haga sys.exit(0/1)
+    if fails:
+        print("🚫 BLOQUEADO por ética/umbrales.")
+        return ("BLOCKED", fails)
+    else:
+        print("✅ OK (cumple umbrales éticos).")
+        return ("OK", [])
+
+
+
+
+def gini(values):
+    """
+    Calcula el coeficiente de Gini de una lista de valores.
+    Devuelve un número entre 0 (perfecta igualdad) y 1 (máxima desigualdad).
+    """
+    if not values:
+        return 0.0
+    sorted_vals = sorted(values)
+    n = len(values)
+    cumulative = 0
+    for i, val in enumerate(sorted_vals, start=1):
+        cumulative += i * val
+    total = sum(sorted_vals)
+    if total == 0:
+        return 0.0
+    return (2 * cumulative) / (n * total) - (n + 1) / n
+
 
 def eval_block(rt: Runtime, code_block: str):
     """Evalúa un sub-bloque de acciones simple (sin IF anidados en el MVP).
@@ -1238,6 +1306,8 @@ def snapshot_state(rt):
     degrees = dict(rt.graph.degree())
     # Gini
     g = gini(resources) if resources else 0.0
+    equity = 1.0 - g   # así lo transformás en "equidad" (a mayor desigualdad, menor equity)
+
 
     return {
         "edges": edges,
@@ -1268,18 +1338,6 @@ def print_alerts(alerts):
              print(a)
          ETHICS_ALREADY_EMITTED = True
 
-def apply_ethics_yaml_once(path="ethics.yaml"):
-         """
-         Carga los umbrales desde YAML solo una vez y actualiza ETHICS.
-         """
-         global ETHICS_LOADED, ETHICS
-         if ETHICS_LOADED:
-             return
-         over = load_ethics_from_yaml(path)  # <-- NO te llames a ti misma
-         if over:
-             ETHICS.update(over)
-             print("[ETHICS] Umbrales cargados desde ethics.yaml")
-         ETHICS_LOADED = True
 # =========================
 # MAIN
 # =========================
@@ -1296,9 +1354,6 @@ def main():
         print(f"[ERROR] No existe {args.file}. Corré: python main.py TU_ARCHIVO.lexo --lang=es")
         sys.exit(1)
 
-    with open(args.file, "r", encoding="utf-8") as f:
-        source = f.read()
-f
     # DEBUG de archivo leído (opcional pero útil)
 print(f"[DEBUG] leyendo: {args.file}, bytes={len(source)}, sha1={hashlib.sha1(source.encode()).hexdigest()[:10]}")
 print("[DEBUG] primeras líneas:\n" + "\n".join(source.splitlines()[:6]))
@@ -1312,6 +1367,71 @@ if ast is None:
 rt = Runtime()
 execute(rt, ast, finalize=True)
 
+# === EXEC FINAL BLOCKER ===
+def load_ethics_thresholds(path="ethics.yaml"):
+    import yaml, os
+    if not os.path.exists(path):
+        # valores por defecto “razonables” si el archivo no existe
+        return {"min_trust": 60.0, "min_cohesion": 50.0, "min_equity": 60.0}
+    with open(path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    return {
+        "min_trust": float(data.get("min_trust", 60.0)),
+        "min_cohesion": float(data.get("min_cohesion", 50.0)),
+        "min_equity": float(data.get("min_equity", 60.0)),
+    }
+
+def blocker_decision(metrics, thresholds):
+    fails = []
+    if metrics["trust"]   < thresholds["min_trust"]:    fails.append(("trust",   metrics["trust"],   thresholds["min_trust"]))
+    if metrics["cohesion"]< thresholds["min_cohesion"]: fails.append(("cohesion",metrics["cohesion"],thresholds["min_cohesion"]))
+    if metrics["equity"]  < thresholds["min_equity"]:   fails.append(("equity",  metrics["equity"],  thresholds["min_equity"]))
+    return fails
+
+def write_blockade_summary(metrics, thresholds, fails, path="blockade_summary.json"):
+    import json, time
+    payload = {
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "metrics": metrics,
+        "thresholds": thresholds,
+        "status": "BLOCKED" if fails else "OK",
+        "fails": [{"metric": m, "value": v, "required": r} for (m, v, r) in fails],
+    }
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+
+def append_changelog(status, metrics, fails, path="CHANGELOG.md"):
+    import time, os
+    line = f"- {time.strftime('%Y-%m-%d %H:%M:%S')} exec-final: {status} | trust={metrics['trust']:.2f} cohesion={metrics['cohesion']:.2f} equity={metrics['equity']:.2f}"
+    if fails:
+        detail = " ; ".join([f"{m}={v:.2f} < {r:.2f}" for (m, v, r) in fails])
+        line += f" | fails: {detail}"
+    line += "\n"
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(line)
+# --- ETHICS / BLOCKER ---
+thresholds = load_ethics_thresholds("ethics.yaml")
+print("[ETHICS] Umbrales cargados:", thresholds)
+
+final_metrics = getattr(rt, "final_metrics", None)   # ⬅️ TRAERLAS DESDE rt
+
+if final_metrics is None:
+    print("[ETHICS] No se calcularon métricas, no se puede evaluar blocker.")
+    import sys
+    sys.exit(1)
+
+fails = blocker_decision(final_metrics, thresholds)
+write_blockade_summary(final_metrics, thresholds, fails, "blockade_summary.json")
+append_changelog("BLOCKED" if fails else "OK", final_metrics, fails, "CHANGELOG.md")
+
+if fails:
+    print("🚫 BLOQUEADO por ética/umbrales.")
+    import sys
+    sys.exit(1)
+else:
+    print("✅ OK (cumple umbrales éticos).")
+
+
 m = rt.measure()
 print("== MÉTRICAS FINALES ==")
 print(json.dumps(m, ensure_ascii=False, indent=2))
@@ -1319,3 +1439,4 @@ print(json.dumps(m, ensure_ascii=False, indent=2))
 
 if __name__ == "__main__":
     main()
+
