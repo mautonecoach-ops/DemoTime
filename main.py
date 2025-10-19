@@ -1169,38 +1169,6 @@ from core_helpers import (
     ensure_whatif_never_mutates,
 )
 
-def execute_final(rt, run_id, save_network=True):
-    # 1) recuperar métricas finales del runtime
-    final_metrics = getattr(rt, "final_metrics", None)
-
-    # 2) validar que existan métricas
-    if final_metrics is None:
-        print("[EXEC_FINAL] No hay métricas finales; abortando.")
-        return ("BLOCKED", [("metrics", 0, "present")])
-
-    # 3) (placeholder) asegurar que WHAT_IF no muta estado real
-    ensure_whatif_never_mutates(rt)
-
-    # 4) cargar umbrales y decidir
-    thresholds = load_ethics_thresholds("ethics.yaml")
-    print("[ETHICS] Umbrales cargados:", thresholds)
-    fails = blocker_decision(final_metrics, thresholds)
-
-    # 5) persistir artefactos de cierre
-    write_blockade_summary(run_id, final_metrics, thresholds, fails)
-    append_changelog("BLOCKED" if fails else "OK", final_metrics, fails, "CHANGELOG.md")
-
-    # 6) devolver estado para que main() haga sys.exit(0/1)
-    if fails:
-        print("🚫 BLOQUEADO por ética/umbrales.")
-        return ("BLOCKED", fails)
-    else:
-        print("✅ OK (cumple umbrales éticos).")
-        return ("OK", [])
-
-
-
-
 def gini(values):
     """
     Calcula el coeficiente de Gini de una lista de valores.
@@ -1341,131 +1309,105 @@ def print_alerts(alerts):
 # =========================
 # MAIN
 # =========================
-def main():
-    apply_ethics_yaml_once("ethics.yaml")
+# main.py — flujo único y limpio
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("file", nargs="?", default="demo_es.lexo", help="Archivo .lexo")
-    parser.add_argument("--lang", choices=["es", "en"], default="es")
-    args = parser.parse_args()
+import sys, os, json, hashlib, argparse
 
-    import os, hashlib, json
-    if not os.path.exists(args.file):
-        print(f"[ERROR] No existe {args.file}. Corré: python main.py TU_ARCHIVO.lexo --lang=es")
-        sys.exit(1)
+# Importá tus propias piezas del proyecto (ajusta estos imports a tus módulos reales)
+# from your_lexo_module import normalize_source, parse_program, Runtime, execute
+# ^^^ Ajusta los nombres/ubicaciones de estas funciones/clases según tu repo
 
-    # DEBUG de archivo leído (opcional pero útil)
-print(f"[DEBUG] leyendo: {args.file}, bytes={len(source)}, sha1={hashlib.sha1(source.encode()).hexdigest()[:10]}")
-print("[DEBUG] primeras líneas:\n" + "\n".join(source.splitlines()[:6]))
+# Helpers centrales (ya creados en core_helpers.py)
+from core_helpers import (
+    begin_run, end_run,
+    load_ethics_thresholds, blocker_decision,
+    write_blockade_summary, append_changelog,
+)
 
-    
-ast  = parse_program(norm)
-if ast is None:
-        print("[ERROR] parse_program devolvió None (revisá indentación y 'return ast').")
-        sys.exit(1)
+# Si ya definiste execute_final() antes, podés borrar esta función.
+# La dejo acá por si lo necesitás localmente.
+def execute_final(rt, run_id, save_network=True):
+    """
+    Cierra la corrida:
+      - recupera métricas finales desde rt.final_metrics
+      - carga umbrales y decide
+      - guarda blockade_summary.json y apéndice en CHANGELOG.md
+      - imprime ✅/🚫 y devuelve ("OK"| "BLOCKED", fails)
+    """
+    final_metrics = getattr(rt, "final_metrics", None)
+    if final_metrics is None:
+        print("[EXEC_FINAL] No hay métricas finales; abortando.")
+        return ("BLOCKED", [("metrics", 0, "present")])
 
-rt = Runtime()
-execute(rt, ast, finalize=True)
+    try:
+        ensure_whatif_never_mutates(rt)
+    except NameError:
+        pass  # si aún no tenés ese helper, ignorá
+        
+    thresholds = load_ethics_thresholds("ethics.yaml")
+    print("[ETHICS] Umbrales cargados:", thresholds)
 
-# === EXEC FINAL BLOCKER ===
-def load_ethics_thresholds(path="ethics.yaml"):
-    import yaml, os
-    if not os.path.exists(path):
-        # valores por defecto “razonables” si el archivo no existe
-        return {"min_trust": 60.0, "min_cohesion": 50.0, "min_equity": 60.0}
-    with open(path, "r", encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
-    return {
-        "min_trust": float(data.get("min_trust", 60.0)),
-        "min_cohesion": float(data.get("min_cohesion", 50.0)),
-        "min_equity": float(data.get("min_equity", 60.0)),
-    }
+    fails = blocker_decision(final_metrics, thresholds)
 
-def blocker_decision(metrics, thresholds):
-    fails = []
-    if metrics["trust"]   < thresholds["min_trust"]:    fails.append(("trust",   metrics["trust"],   thresholds["min_trust"]))
-    if metrics["cohesion"]< thresholds["min_cohesion"]: fails.append(("cohesion",metrics["cohesion"],thresholds["min_cohesion"]))
-    if metrics["equity"]  < thresholds["min_equity"]:   fails.append(("equity",  metrics["equity"],  thresholds["min_equity"]))
-    return fails
+    write_blockade_summary(run_id, final_metrics, thresholds, fails)
+    append_changelog("BLOCKED" if fails else "OK", final_metrics, fails, "CHANGELOG.md")
 
-def write_blockade_summary(metrics, thresholds, fails, path="blockade_summary.json"):
-    import json, time
-    payload = {
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-        "metrics": metrics,
-        "thresholds": thresholds,
-        "status": "BLOCKED" if fails else "OK",
-        "fails": [{"metric": m, "value": v, "required": r} for (m, v, r) in fails],
-    }
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, indent=2)
-
-def append_changelog(status, metrics, fails, path="CHANGELOG.md"):
-    import time, os
-    line = f"- {time.strftime('%Y-%m-%d %H:%M:%S')} exec-final: {status} | trust={metrics['trust']:.2f} cohesion={metrics['cohesion']:.2f} equity={metrics['equity']:.2f}"
     if fails:
-        detail = " ; ".join([f"{m}={v:.2f} < {r:.2f}" for (m, v, r) in fails])
-        line += f" | fails: {detail}"
-    line += "\n"
-    with open(path, "a", encoding="utf-8") as f:
-        f.write(line)
-# --- ETHICS / BLOCKER ---
-thresholds = load_ethics_thresholds("ethics.yaml")
-print("[ETHICS] Umbrales cargados:", thresholds)
-
-final_metrics = getattr(rt, "final_metrics", None)   # ⬅️ TRAERLAS DESDE rt
-
-if final_metrics is None:
-    print("[ETHICS] No se calcularon métricas, no se puede evaluar blocker.")
-    import sys
-    sys.exit(1)
-
-fails = blocker_decision(final_metrics, thresholds)
-write_blockade_summary(final_metrics, thresholds, fails, "blockade_summary.json")
-append_changelog("BLOCKED" if fails else "OK", final_metrics, fails, "CHANGELOG.md")
-
-if fails:
-    print("🚫 BLOQUEADO por ética/umbrales.")
-    import sys
-    sys.exit(1)
-else:
-    print("✅ OK (cumple umbrales éticos).")
+        print("🚫 BLOQUEADO por ética/umbrales.")
+        return ("BLOCKED", fails)
+    else:
+        print("✅ OK (cumple umbrales éticos).")
+        return ("OK", [])
 
 
-m = rt.measure()
-print("== MÉTRICAS FINALES ==")
-print(json.dumps(m, ensure_ascii=False, indent=2))
+def main():
+    # ---- CLI ----
+    cli = argparse.ArgumentParser()
+    cli.add_argument("file", nargs="?", default="demo_es.lexo", help="Archivo .lexo")
+    cli.add_argument("--lang", choices=["es", "en"], default="es")
+    cli.add_argument("--no-save-network", action="store_true")
+    args = cli.parse_args()
 
-if __name__ == "__main__":
-    import argparse, json
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("file")
-    parser.add_argument("--lang", default="es")
-    parser.add_argument("--no-save-network", action="store_true")
-    args = parser.parse_args()
-
-    # 0) begin_run
+    # ---- begin_run ----
     run_id = begin_run()
 
     try:
-        # 1) leer fuente y parsear
+        # ---- leer fuente ----
+        if not os.path.exists(args.file):
+            print(f"[ERROR] No existe {args.file}. Corré: python main.py TU_ARCHIVO.lexo --lang=es")
+            sys.exit(1)
+
         with open(args.file, "r", encoding="utf-8") as f:
             source = f.read()
+
+        print(f"[DEBUG] leyendo: {args.file}, bytes={len(source)}, sha1={hashlib.sha1(source.encode()).hexdigest()[:10]}")
+        print("[DEBUG] primeras líneas:\n" + "\n".join(source.splitlines()[:6]))
+
+        # ---- normalizar y parsear ----
         norm = normalize_source(source, args.lang)
-        ast = parser_obj.parse(norm)
+        ast  = parse_program(norm)
+        if ast is None:
+            print("[ERROR] parse_program devolvió None (revisá indentación y 'return ast').")
+            sys.exit(1)
 
-        # 2) ejecutar (tu execute(...) debe setear rt.final_metrics)
-        execute(rt, ast, finalize=True)
+        # ---- runtime + execute ----
+        rt = Runtime()
+        execute(rt, ast, finalize=True)   # Asegurate que MEASURE_IMPACT setea rt.final_metrics
 
-        # 3) cierre único
+        # (opcional) imprimir métricas finales visibles
+        m = rt.measure()
+        print("== MÉTRICAS FINALES ==")
+        print(json.dumps(m, ensure_ascii=False, indent=2))
+
+        # ---- cierre único ----
         status, fails = execute_final(rt, run_id, save_network=not args.no_save_network)
 
-        # 4) exit code según status
-        import sys
+        # ---- exit code ----
         sys.exit(0 if status == "OK" else 1)
 
     finally:
         end_run(run_id, ok=True)
 
 
+if __name__ == "__main__":
+    main()
