@@ -1436,7 +1436,36 @@ m = rt.measure()
 print("== MÉTRICAS FINALES ==")
 print(json.dumps(m, ensure_ascii=False, indent=2))
 
-
 if __name__ == "__main__":
-    main()
+    import argparse, json
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("file")
+    parser.add_argument("--lang", default="es")
+    parser.add_argument("--no-save-network", action="store_true")
+    args = parser.parse_args()
+
+    # 0) begin_run
+    run_id = begin_run()
+
+    try:
+        # 1) leer fuente y parsear
+        with open(args.file, "r", encoding="utf-8") as f:
+            source = f.read()
+        norm = normalize_source(source, args.lang)
+        ast = parser_obj.parse(norm)
+
+        # 2) ejecutar (tu execute(...) debe setear rt.final_metrics)
+        execute(rt, ast, finalize=True)
+
+        # 3) cierre único
+        status, fails = execute_final(rt, run_id, save_network=not args.no_save_network)
+
+        # 4) exit code según status
+        import sys
+        sys.exit(0 if status == "OK" else 1)
+
+    finally:
+        end_run(run_id, ok=True)
+
 
