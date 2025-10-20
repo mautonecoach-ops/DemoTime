@@ -805,6 +805,24 @@ if ast is None:
     print("[ERROR] parse_program devolvió None. Revisá el 'return ast' al final y la indentación.")
     sys.exit(1)
 
+from linter import run_linter
+violations = run_linter(ast, rules_path="ethics_rules.yaml", norm_source=norm)
+
+from linter import load_rules, lint_plan, write_lint_summary
+from core_helpers import append_changelog  # ya lo tenés importado arriba; si no, importalo
+
+# ---- LINTER PRE-EJECUCIÓN (v0.2) ----
+rules = load_rules("ethics_rules.yaml")
+violations = lint_plan(norm, ast, rules)
+if violations:
+    write_lint_summary(violations, "lint_summary.json")
+    for v in violations:
+        print(f"[LINT] {v['code']}: {v['msg']}  @ {v['where']}")
+    if rules.get("fail_on_lint", True):
+        append_changelog("LINT_BLOCKED", {"trust": 0, "cohesion": 0, "equity": 0}, [], "CHANGELOG.md")
+        print("🚫 LINTER: plan bloqueado por reglas pre-ejecución.")
+        sys.exit(1)
+
 # =========================
 # RUNTIME / EJECUCIÓN
 # =========================

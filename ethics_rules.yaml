@@ -1,0 +1,9 @@
+# Reglas éticas para revisión pre-ejecución (LEXO Linter v0.2)
+
+min_trust: 50
+min_cohesion: 40
+min_equity: 50
+max_resource_concentration: 0.6
+min_nodes: 3
+require_care_action_if_low_trust: true
+require_redistribution_if_high_concentration: true
