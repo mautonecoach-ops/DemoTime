@@ -9,3 +9,22 @@
 - 2025-09-15 23:11:20 exec-final: OK | trust=72.17 cohesion=67.74 equity=76.94
 - 2025-09-15 23:19:14 exec-final: OK | trust=72.17 cohesion=67.74 equity=76.94
 - 2025-10-19 12:47:55 exec-final: OK | trust=72.17 cohesion=67.74 equity=76.94
+- 2025-10-19 13:38:00 exec-final: OK | trust=72.17 cohesion=67.74 equity=76.94
+- 2025-10-19 13:42:53 exec-final: OK | trust=72.17 cohesion=67.74 equity=76.94
+- 2025-10-19 14:00:19 exec-final: OK | trust=72.17 cohesion=67.74 equity=76.94
+- 2025-10-19 14:09:59 exec-final: OK | trust=72.17 cohesion=67.74 equity=76.94
+- 2025-10-19 14:15:01 exec-final: BLOCKED | trust=51.20 cohesion=0.00 equity=58.93 | fails: trust=51.20 < 60.00 ; cohesion=0.00 < 50.00 ; equity=58.93 < 60.00
+- 2025-10-19 14:17:50 exec-final: BLOCKED | trust=64.78 cohesion=45.00 equity=83.59 | fails: cohesion=45.00 < 50.00
+- 2025-10-19 15:10:15 exec-final: OK | trust=72.17 cohesion=67.74 equity=76.94
+- 2025-10-19 15:24:18 exec-final: OK | trust=72.17 cohesion=67.74 equity=76.94
+- 2025-10-20 21:47:45 exec-final: OK | trust=72.17 cohesion=67.74 equity=76.94
+- 2025-10-20 22:09:42 exec-final: OK | trust=72.17 cohesion=67.74 equity=76.94
+- 2025-10-23 22:45:58 exec-final: BLOCKED | trust=51.20 cohesion=0.00 equity=58.93 | fails: trust=51.20 < 60.00 ; cohesion=0.00 < 50.00 ; equity=58.93 < 60.00
+- 2025-10-26 12:59:34 exec-final: BLOCKED | trust=51.20 cohesion=0.00 equity=58.93 | fails: trust=51.20 < 60.00 ; cohesion=0.00 < 50.00 ; equity=58.93 < 60.00
+- 2025-10-26 13:05:11 exec-final: BLOCKED | trust=51.20 cohesion=0.00 equity=58.93 | fails: trust=51.20 < 60.00 ; cohesion=0.00 < 50.00 ; equity=58.93 < 60.00
+- 2025-10-26 13:31:18 exec-final: BLOCKED | trust=51.20 cohesion=0.00 equity=64.06 | fails: trust=51.20 < 60.00 ; cohesion=0.00 < 50.00
+- 2025-10-26 14:06:54 lint-pre: OK
+- 2025-10-26 14:07:28 lint-pre: FAIL | 3 violación(es)
+- 2025-10-26 15:38:39 lint-pre: FAIL | 3 violación(es)
+- 2025-10-26 15:48:49 lint-pre: OK
+- 2025-10-26 15:48:50 exec-final: OK | trust=72.17 cohesion=67.74 equity=75.70
