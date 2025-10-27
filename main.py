@@ -20,11 +20,6 @@ import warnings
 import argparse
 import hashlib
 
-parser = argparse.ArgumentParser()
-parser.add_argument("file", help="Archivo fuente .lexo")
-parser.add_argument("--lang", default="es", help="Idioma")
-args = parser.parse_args()
-
 warnings.filterwarnings(
     "ignore",
     message="This figure includes Axes that are not compatible with tight_layout",
@@ -796,32 +791,15 @@ def parse_program(src: str):
         i += 1
     
     return ast
-with open(args.file, "r", encoding="utf-8") as f:
-    source = f.read()
-
-norm = normalize_source(source, args.lang)   # <- DEBE existir esta función y devolver str
-ast = parse_program(norm)
-if ast is None:
-    print("[ERROR] parse_program devolvió None. Revisá el 'return ast' al final y la indentación.")
-    sys.exit(1)
 
 from linter import run_linter
-violations = run_linter(ast, rules_path="ethics_rules.yaml", norm_source=norm)
+from core_helpers import append_changelog_lint
 
-from linter import load_rules, lint_plan, write_lint_summary
-from core_helpers import append_changelog  # ya lo tenés importado arriba; si no, importalo
 
-# ---- LINTER PRE-EJECUCIÓN (v0.2) ----
+# Cargar reglas del lint (para leer fail_on_lint)
+from linter import load_rules
 rules = load_rules("ethics_rules.yaml")
-violations = lint_plan(norm, ast, rules)
-if violations:
-    write_lint_summary(violations, "lint_summary.json")
-    for v in violations:
-        print(f"[LINT] {v['code']}: {v['msg']}  @ {v['where']}")
-    if rules.get("fail_on_lint", True):
-        append_changelog("LINT_BLOCKED", {"trust": 0, "cohesion": 0, "equity": 0}, [], "CHANGELOG.md")
-        print("🚫 LINTER: plan bloqueado por reglas pre-ejecución.")
-        sys.exit(1)
+
 
 # =========================
 # RUNTIME / EJECUCIÓN
@@ -1427,5 +1405,75 @@ def main():
         end_run(run_id, ok=True)
 
 
+# =====================================================
+# MAIN — CLI de entrada
+# =====================================================
 if __name__ == "__main__":
-    main()
+    import argparse, sys, hashlib
+    from linter import run_linter
+    from core_helpers import append_changelog_lint, begin_run, end_run
+
+    # --- CLI ---
+    parser = argparse.ArgumentParser()
+    parser.add_argument("file", nargs="?", default="demo_es.lexo", help="Archivo .lexo")
+    parser.add_argument("--lang", choices=["es", "en"], default="es")
+    parser.add_argument("--lint-only", action="store_true",
+                        help="Ejecuta solo el linter y sale 0/1.")
+    parser.add_argument("--no-lint-block", action="store_true",
+                        help="No bloquea ejecución aunque haya violaciones de lint.")
+    args = parser.parse_args()
+
+    # --- LECTURA ---
+    try:
+        with open(args.file, "r", encoding="utf-8") as f:
+            source = f.read()
+    except FileNotFoundError:
+        print(f"[ERROR] No existe {args.file}. Corré: python main.py TU_ARCHIVO.lexo --lang=es")
+        sys.exit(1)
+
+    norm = normalize_source(source, args.lang)
+    ast = parse_program(norm)
+    print(f"[DEBUG] leyendo: {args.file}, bytes={len(source)}, sha1={hashlib.sha1(source.encode()).hexdigest()[:10]}")
+    print("[DEBUG] primeras líneas:\n" + "\n".join(source.splitlines()[:6]))
+
+    # --- LINTER PRE-EJECUCIÓN ---
+    violations = run_linter(ast, "ethics_rules.yaml", norm_source=norm)
+    append_changelog_lint("OK" if not violations else "FAIL", len(violations))
+
+    # 1️⃣ Si solo se pidió correr el linter
+    if args.lint_only:
+        sys.exit(0 if not violations else 1)
+
+    # 2️⃣ Política de bloqueo (por defecto activa)
+    fail_on_lint = True  # o cargarla desde rules si querés hacerlo dinámico
+    if violations and fail_on_lint and not args.no_lint_block:
+        print(f"[LINTER] 🚫 {len(violations)} violación(es). Abortando ejecución por política fail_on_lint.")
+        sys.exit(1)
+
+    # 3️⃣ Si hay violaciones pero no bloquean, se imprimen igualmente
+    if violations:
+        for v in violations:
+            print(f"[LINT] {v['code']}: {v['msg']}  @ {v.get('where', '?')}")
+
+    # --- PARSEAR ---
+    
+    if ast is None:
+        print("[ERROR] parse_program devolvió None (revisá indentación y 'return ast').")
+        sys.exit(1)
+
+    # --- RUNTIME ---
+    run_id = begin_run()
+    try:
+        rt = Runtime()
+        execute(rt, ast, finalize=True)
+        status, fails = execute_final(rt, run_id, save_network=True)
+
+        # 4) Respeto de --no-ethics-block
+        if args.no_ethics_block and status == "BLOCKED":
+            print("[ETHICS] BLOCKED → ignorado por flag --no-ethics-block (salida OK).")
+            sys.exit(0)
+        else:
+            sys.exit(0 if status == "OK" else 1)
+    finally:
+        end_run(run_id, ok=True)
+    

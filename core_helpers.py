@@ -25,6 +25,16 @@ def append_changelog(status, metrics, fails, path="CHANGELOG.md"):
     with open(path, "a", encoding="utf-8") as f:
         f.write(line)
 
+def append_changelog_lint(status: str, count: int, path="CHANGELOG.md"):
+    import time
+    line = f"- {time.strftime('%Y-%m-%d %H:%M:%S')} lint-pre: {status}"
+    if count:
+        line += f" | {count} violación(es)"
+    line += "\n"
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(line)
+
+
 def write_csv_rows(path, rows, header=None):
     exists = os.path.exists(path)
     with open(path, "a", newline="", encoding="utf-8") as f:
