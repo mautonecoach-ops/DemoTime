@@ -1421,6 +1421,12 @@ if __name__ == "__main__":
                         help="Ejecuta solo el linter y sale 0/1.")
     parser.add_argument("--no-lint-block", action="store_true",
                         help="No bloquea ejecución aunque haya violaciones de lint.")
+    parser.add_argument("--no-save-network", action="store_true",
+        help="No guarda network.png/report.* en execute_final.")
+    parser.add_argument("--no-ethics-block", action="store_true",
+        help="Si el blocker ético devuelve BLOCKED, continúa (exit 0).")
+
+    
     args = parser.parse_args()
 
     # --- LECTURA ---
@@ -1466,14 +1472,19 @@ if __name__ == "__main__":
     try:
         rt = Runtime()
         execute(rt, ast, finalize=True)
-        status, fails = execute_final(rt, run_id, save_network=True)
 
-        # 4) Respeto de --no-ethics-block
-        if args.no_ethics_block and status == "BLOCKED":
-            print("[ETHICS] BLOCKED → ignorado por flag --no-ethics-block (salida OK).")
-            sys.exit(0)
+        # Post-ejecución (evalúa ética, persiste summary y actualiza changelog)
+        status, fails = execute_final(rt, run_id, save_network=not args.no_save_network)
+
+        # Respeto de --no-ethics-block
+        if status == "BLOCKED" and args.no_ethics_block:
+            print("⚠️  [ETHICS] Bloqueo ético anulado por --no-ethics-block (continuando).")
+            exit_code = 0
         else:
-            sys.exit(0 if status == "OK" else 1)
+            exit_code = 0 if status == "OK" else 1
+
+        import sys
+        sys.exit(exit_code)
+
     finally:
         end_run(run_id, ok=True)
-    

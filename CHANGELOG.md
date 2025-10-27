@@ -28,3 +28,22 @@
 - 2025-10-26 15:38:39 lint-pre: FAIL | 3 violación(es)
 - 2025-10-26 15:48:49 lint-pre: OK
 - 2025-10-26 15:48:50 exec-final: OK | trust=72.17 cohesion=67.74 equity=75.70
+- 2025-10-26 15:58:03 lint-pre: OK
+- 2025-10-26 15:58:03 exec-final: BLOCKED | trust=51.20 cohesion=0.00 equity=64.06 | fails: trust=51.20 < 60.00 ; cohesion=0.00 < 50.00
+- 2025-10-26 16:01:07 lint-pre: FAIL | 3 violación(es)
+- 2025-10-26 16:07:22 lint-pre: OK
+- 2025-10-26 16:07:22 exec-final: BLOCKED | trust=64.78 cohesion=45.00 equity=81.99 | fails: cohesion=45.00 < 50.00
+- 2025-10-27 19:05:01 lint-pre: OK
+- 2025-10-27 19:06:20 lint-pre: OK
+- 2025-10-27 19:06:20 exec-final: BLOCKED | trust=51.20 cohesion=0.00 equity=64.06 | fails: trust=51.20 < 60.00 ; cohesion=0.00 < 50.00
+- 2025-10-27 19:32:54 lint-pre: OK
+- 2025-10-27 19:32:55 exec-final: BLOCKED | trust=51.20 cohesion=0.00 equity=64.06 | fails: trust=51.20 < 60.00 ; cohesion=0.00 < 50.00
+- 2025-10-27 19:39:07 lint-pre: OK
+- 2025-10-27 19:39:07 exec-final: BLOCKED | trust=51.20 cohesion=0.00 equity=64.06 | fails: trust=51.20 < 60.00 ; cohesion=0.00 < 50.00
+- 2025-10-27 20:17:41 lint-pre: OK
+- 2025-10-27 20:28:01 lint-pre: OK
+- 2025-10-27 20:28:01 exec-final: OK | trust=72.17 cohesion=67.74 equity=75.70
+- 2025-10-27 20:28:27 lint-pre: OK
+- 2025-10-27 20:28:27 exec-final: BLOCKED | trust=64.78 cohesion=45.00 equity=81.99 | fails: cohesion=45.00 < 50.00
+- 2025-10-27 20:28:56 lint-pre: OK
+- 2025-10-27 20:28:56 exec-final: BLOCKED | trust=51.20 cohesion=0.00 equity=64.06 | fails: trust=51.20 < 60.00 ; cohesion=0.00 < 50.00
