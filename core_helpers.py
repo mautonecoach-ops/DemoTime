@@ -78,3 +78,41 @@ def write_blockade_summary(run_id, metrics, thresholds, fails):
 def ensure_whatif_never_mutates(rt):
     # Aquí podemos validar que WHAT_IF no alteró estado real (placeholder)
     return True
+
+# core_helpers.py — extractores de contexto para el linter v0.4
+from typing import Any, Dict
+
+# Estas funciones suponen que ya parseaste el input .lexo a un AST/IR
+# y que contás con métricas base (previous) y proyectadas (plan).
+
+def build_lint_context(ast_ir: Dict[str, Any], baseline_metrics: Dict[str, float], planned_metrics: Dict[str, float]) -> Dict[str, Any]:
+    graph = _graph_from_ast(ast_ir)
+    ctx = {
+        "graph": graph, # {nodes:[{id,type,...}], edges:[{u,v,tags:[...]}, ...]}
+        "metrics": {
+            "previous": baseline_metrics,
+            "plan": planned_metrics,
+        },
+        # Lugar para extras: usuarios, flags, features
+        "features": {
+            "care_network_tag": "care_network",
+        },
+    }
+    return ctx
+
+def _graph_from_ast(ast_ir: Dict[str, Any]) -> Dict[str, Any]:
+    nodes = []
+    edges = []
+    for n in ast_ir.get("nodes", []):
+        nodes.append({
+            "id": n.get("name"),
+            "type": n.get("type"),
+            **({k: v for k, v in n.items() if k not in ("name", "type")}),
+        })
+    for r in ast_ir.get("relations", []):
+        edges.append({
+            "u": r.get("source"),
+            "v": r.get("target"),
+            "tags": list(set(r.get("tags", []))),
+        })
+    return {"nodes": nodes, "edges": edges}

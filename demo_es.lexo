@@ -17,8 +17,9 @@ conectar("Ciro","Barrio Sur") { confianza: 55, intensidad: MEDIA }
 conectar("Ciro","Ayla") { confianza: 50, intensidad: MEDIA }
 conectar("Bruno","Lucía") { confianza: 55, intensidad: MEDIA }
 
-conectar("Lucía","Barrio Sur") { confianza: 60, intensidad: ALTA }
-conectar("Mateo","Barrio Sur") { confianza: 60, intensidad: MEDIA }
+conectar("Lucía","Barrio Sur") { confianza: 60, intensidad: ALTA, tags: ["care_network"] }
+conectar("Mateo","Barrio Sur") { confianza: 60, intensidad: MEDIA, tags: ["care_network"] }
+conectar("Ayla","Barrio Sur")  { confianza: 55, intensidad: MEDIA, tags: ["care_network"] }
 conectar("Lucía","Mateo") { confianza: 58, intensidad: BAJA }
 
 // ===== Política condicional (sube confianza de la comunidad) =====

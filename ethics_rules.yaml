@@ -1,17 +1,57 @@
-require_care_network_if_low_trust : 55
-forbid_negative_resources: true
-min_resource_per_node: 1.5
-min_avg_trust: 55
-max_resource_concentration: 0.50
-# --- LINT (pre-ejecución)
-require_care_action_if_low_trust: 60   # exige al menos un care_network si confianza < 60
-max_redistribute_fraction: 0.35        # fracción máxima heurística por step
-# Política de bloqueo del lint
-fail_on_lint: true                     # bloquea si hay violaciones (por defecto)
-require_initiative_if_low_trust: 55     # NUEVO: exige al menos un launch_initiative si hay baja confianza
-min_strengthen_actions_if_low_trust: 1  # NUEVO: mínimo de strengthen_ties si hay baja confianza
-# --- ETHICS (post-ejecución) ---
-min_trust: 60
-min_cohesion: 50
-min_equity: 60
-max_equity_drop_pct_per_step: 15        # NUEVO: alerta si cae la equidad > X% en un paso (post-ejec)
+schema:
+  version: 0.4
+  severities: [block, warn]
+  phases: [pre, post, both]
+  condition_types:
+    - metric_drop_percent
+    - min_links_per_node
+    - required_subnetwork
+    - expr
+  metrics_allowed: [equity, trust, cohesion]
+  defaults:
+    metric_drop_percent:
+      baseline_source: previous
+      max_drop_percent: 10
+    min_links_per_node:
+      min_degree: 1
+      ignore_types: []
+    required_subnetwork:
+      min_edges: 3
+
+rules:
+  - id: ETH-EXO-001
+    name: Caída de equidad
+    description: Evitar una caída brusca de la equidad de recursos entre estado base y plan propuesto.
+    severity: block
+    when: pre
+    condition:
+      type: metric_drop_percent
+      params:
+        metric: equity
+        baseline_source: previous
+        max_drop_percent: 10
+    remediation: Asegurar redistribuciones o acciones que conserven o mejoren la equidad.
+
+  - id: ETH-EXO-002
+    name: Vínculos mínimos por nodo
+    description: Prevenir nodos aislados o con conectividad insuficiente en la red de colaboración.
+    severity: warn
+    when: pre
+    condition:
+      type: min_links_per_node
+      params:
+        min_degree: 1
+        ignore_types: [resource_tmp]
+    remediation: Crear al menos un vínculo significativo por nodo o justificar el aislamiento.
+
+  - id: ETH-EXO-003
+    name: Subred de cuidado (care_network) requerida
+    description: Exigir presencia de vínculos/canales explícitos de cuidado y soporte mutuo.
+    severity: block
+    when: pre
+    condition:
+      type: required_subnetwork
+      params:
+        tag: care_network
+        min_edges: 3
+    remediation: Incorporar y etiquetar prácticas/relaciones de cuidado (mentoring, apoyo) hasta cumplir el mínimo.

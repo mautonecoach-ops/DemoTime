@@ -6,6 +6,10 @@
 # =========================
 # IMPORTS
 # =========================
+from linter import EthicsLinter 
+from core_helpers import append_changelog_lint
+from core_helpers import build_lint_context
+
 # Standard library
 import sys
 import os
@@ -20,11 +24,20 @@ import warnings
 import argparse
 import hashlib
 
+from core_helpers import (
+    begin_run, end_run,
+    load_ethics_thresholds, blocker_decision,
+    write_blockade_summary, append_changelog,
+)
+
+
 warnings.filterwarnings(
     "ignore",
     message="This figure includes Axes that are not compatible with tight_layout",
     category=UserWarning
 )
+
+
 # =========================
 # Globals y helpers ETHICS (mínimo)
 # =========================
@@ -792,14 +805,6 @@ def parse_program(src: str):
     
     return ast
 
-from linter import run_linter
-from core_helpers import append_changelog_lint
-
-
-# Cargar reglas del lint (para leer fail_on_lint)
-from linter import load_rules
-rules = load_rules("ethics_rules.yaml")
-
 
 # =========================
 # RUNTIME / EJECUCIÓN
@@ -1065,6 +1070,68 @@ class Runtime:
         return (2 * cum) / (n * s) - (n + 1) / n
 
 
+# ———— PRE-LINTER v0.4 (hook) ————
+from linter import EthicsLinter
+from core_helpers import build_lint_context
+
+def _ast_to_ir_for_linter(ast) -> dict:
+    """
+    Conversión mínima y tolerante del AST a IR para el linter.
+    Si ya tenés un builder/serializer propio, usalo y reemplazá esta función.
+    """
+    ir = {"nodes": [], "relations": []}
+    try:
+        for kind, type_name, name, props in getattr(ast, "decls", []):
+            if kind == "CREATE_NODE":
+                ir["nodes"].append({
+                    "name": name,
+                    "type": type_name,
+                    **(props or {})
+                })
+            elif kind in ("CREATE_EDGE", "CONNECT", "LINK"):
+                # Ajustá si tu AST usa otra tupla/estructura para relaciones
+                src = props.get("source") if props else None
+                tgt = props.get("target") if props else None
+                tags = props.get("tags") if props else []
+                if src and tgt:
+                    ir["relations"].append({"source": src, "target": tgt, "tags": tags})
+    except Exception:
+        # Fallback tolerante: si algo falla, el linter seguirá pudiendo evaluar reglas de métricas
+        pass
+    return ir
+
+def _print_lint_report(report):
+    if not report.violations:
+        print(f"[LINTER][{report.phase}] ✅ Sin violaciones.")
+        return
+    print(f"[LINTER][{report.phase}] ⚠️  Violaciones encontradas:")
+    for v in report.violations:
+        print(f"  - ({v.severity.upper()}) {v.rule_id}: {v.message}")
+        if v.remediation:
+            print(f"      → Sugerencia: {v.remediation}")
+
+def _persist_blockade_summary(report):
+    import json, time
+    payload = {
+        "phase": report.phase,
+        "blocked": True,
+        "violations": [
+            {
+                "rule_id": v.rule_id,
+                "severity": v.severity,
+                "message": v.message,
+                "remediation": v.remediation,
+            } for v in report.violations
+        ],
+        "ts": int(time.time()),
+        "version": "v0.4",
+    }
+    with open("blockade_summary.json", "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+    print("[LINTER] 🛑 Bloqueo ético — se guardó blockade_summary.json")
+# ———— FIN PRE-LINTER v0.4 ————
+
+
 # =========================
 # EJECUCIÓN DEL AST
 # =========================
@@ -1307,28 +1374,40 @@ def print_alerts(alerts):
 # =========================
 # main.py — flujo único y limpio
 
-import sys, os, json, hashlib, argparse
+
 
 # Importá tus propias piezas del proyecto (ajusta estos imports a tus módulos reales)
 # from your_lexo_module import normalize_source, parse_program, Runtime, execute
 # ^^^ Ajusta los nombres/ubicaciones de estas funciones/clases según tu repo
 
 # Helpers centrales (ya creados en core_helpers.py)
-from core_helpers import (
-    begin_run, end_run,
-    load_ethics_thresholds, blocker_decision,
-    write_blockade_summary, append_changelog,
-)
+
 
 # Si ya definiste execute_final() antes, podés borrar esta función.
 # La dejo acá por si lo necesitás localmente.
-def execute_final(rt, run_id, save_network=True):
+# v0.4 – validación previa con el linter ético
+def execute_final_pre(rt, ast, baseline_metrics, planned_metrics, rules_path="ethics_rules.yaml"):
     """
-    Cierra la corrida:
-      - recupera métricas finales desde rt.final_metrics
-      - carga umbrales y decide
-      - guarda blockade_summary.json y apéndice en CHANGELOG.md
-      - imprime ✅/🚫 y devuelve ("OK"| "BLOCKED", fails)
+    Linter ético PRE-ejecución: bloquea si hay violaciones antes de correr el AST.
+    """
+    linter = EthicsLinter(rules_path)
+    ast_ir = _ast_to_ir_for_linter(ast)
+    ctx = build_lint_context(ast_ir, baseline_metrics, planned_metrics)
+    pre_report = linter.run_pre(ctx)
+
+    _print_lint_report(pre_report)
+    if pre_report.should_block:
+        _persist_blockade_summary(pre_report)
+        return 13
+
+    rc = execute(rt, ast)
+    return rc
+# v0.2 – cierre posterior a la ejecución
+def execute_final_post(rt, run_id, save_network=True):
+    """
+    Cierra la corrida post-ejecución:
+    - Evalúa umbrales finales.
+    - Escribe blockade_summary.json y CHANGELOG.md.
     """
     final_metrics = getattr(rt, "final_metrics", None)
     if final_metrics is None:
@@ -1338,8 +1417,8 @@ def execute_final(rt, run_id, save_network=True):
     try:
         ensure_whatif_never_mutates(rt)
     except NameError:
-        pass  # si aún no tenés ese helper, ignorá
-        
+        pass
+
     thresholds = load_ethics_thresholds("ethics.yaml")
     print("[ETHICS] Umbrales cargados:", thresholds)
 
@@ -1355,64 +1434,10 @@ def execute_final(rt, run_id, save_network=True):
         print("✅ OK (cumple umbrales éticos).")
         return ("OK", [])
 
-
-def main():
-    # ---- CLI ----
-    cli = argparse.ArgumentParser()
-    cli.add_argument("file", nargs="?", default="demo_es.lexo", help="Archivo .lexo")
-    cli.add_argument("--lang", choices=["es", "en"], default="es")
-    cli.add_argument("--no-save-network", action="store_true")
-    args = cli.parse_args()
-
-    # ---- begin_run ----
-    run_id = begin_run()
-
-    try:
-        # ---- leer fuente ----
-        if not os.path.exists(args.file):
-            print(f"[ERROR] No existe {args.file}. Corré: python main.py TU_ARCHIVO.lexo --lang=es")
-            sys.exit(1)
-
-        with open(args.file, "r", encoding="utf-8") as f:
-            source = f.read()
-
-        print(f"[DEBUG] leyendo: {args.file}, bytes={len(source)}, sha1={hashlib.sha1(source.encode()).hexdigest()[:10]}")
-        print("[DEBUG] primeras líneas:\n" + "\n".join(source.splitlines()[:6]))
-
-        # ---- normalizar y parsear ----
-        norm = normalize_source(source, args.lang)
-        ast  = parse_program(norm)
-        if ast is None:
-            print("[ERROR] parse_program devolvió None (revisá indentación y 'return ast').")
-            sys.exit(1)
-
-        # ---- runtime + execute ----
-        rt = Runtime()
-        execute(rt, ast, finalize=True)   # Asegurate que MEASURE_IMPACT setea rt.final_metrics
-
-        # (opcional) imprimir métricas finales visibles
-        m = rt.measure()
-        print("== MÉTRICAS FINALES ==")
-        print(json.dumps(m, ensure_ascii=False, indent=2))
-
-        # ---- cierre único ----
-        status, fails = execute_final(rt, run_id, save_network=not args.no_save_network)
-
-        # ---- exit code ----
-        sys.exit(0 if status == "OK" else 1)
-
-    finally:
-        end_run(run_id, ok=True)
-
-
 # =====================================================
 # MAIN — CLI de entrada
 # =====================================================
 if __name__ == "__main__":
-    import argparse, sys, hashlib
-    from linter import run_linter
-    from core_helpers import append_changelog_lint, begin_run, end_run
-
     # --- CLI ---
     parser = argparse.ArgumentParser()
     parser.add_argument("file", nargs="?", default="demo_es.lexo", help="Archivo .lexo")
@@ -1443,24 +1468,113 @@ if __name__ == "__main__":
     print("[DEBUG] primeras líneas:\n" + "\n".join(source.splitlines()[:6]))
 
     # --- LINTER PRE-EJECUCIÓN ---
-    violations = run_linter(ast, "ethics_rules.yaml", norm_source=norm)
+
+    # Compatibilidad retro: run_linter(...) usando EthicsLinter v0.4
+    # --- LINTER PRE-EJECUCIÓN ---
+  
+    import re
+
+    def _ast_to_ir_for_linter(ast, raw_source: str | None = None) -> dict:
+        """
+        Construye IR solo desde el source .lexo (robusto para el linter v0.4).
+        - Detecta crear_nodo tipo("Nombre")
+        - Detecta conectar("A","B") { ... tags: [ ... ] }
+        """
+        ir = {"nodes": [], "relations": []}
+        seen = set()
+
+        def add_node(name: str):
+            if name and name not in seen:
+                seen.add(name)
+                ir["nodes"].append({"name": name})
+
+        def add_edge(u: str, v: str, tags: list[str] | None = None):
+            if u and v:
+                ir["relations"].append({"source": u, "target": v, "tags": list(set(tags or []))})
+                add_node(u)
+                add_node(v)
+
+        text = raw_source if isinstance(raw_source, str) else (str(raw_source) if raw_source is not None else "")
+
+        if not isinstance(text, str):
+            return ir
+
+        # Nodos: crear_nodo Tipo("Nombre")
+        for m in re.finditer(r'conectar\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)\s*\{([\s\S]*?)\}', text, flags=re.I):
+
+            add_node(m.group(1))
+
+        # Relaciones: conectar("A","B") { ... } + tags: [ ... ]
+        for m in re.finditer(r'conectar\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)\s*\{([^}]*)\}', text, flags=re.I):
+            u, v, body = m.group(1), m.group(2), m.group(3)
+            tags = []
+            tmatch = re.search(r'tags\s*:\s*\[([^\]]*)\]', body, flags=re.I)
+            if tmatch:
+                raw = tmatch.group(1)
+                tags = [t.strip().strip('"').strip("'") for t in raw.split(",") if t.strip()]
+            add_edge(u, v, tags)
+
+        return ir
+
+    def run_linter(ast, rules_path="ethics_rules.yaml", norm_source=None,
+           baseline_metrics=None, planned_metrics=None, raw_source: str | None = None):
+        """
+        Compatibilidad v0.4: construye IR desde el source (raw_source) y ejecuta el PRE-lint.
+        Devuelve un LintReport (no una lista).
+        """
+        # (opcional) normalizar el AST si te pasan un normalizador callable
+        if callable(norm_source):
+            ast = norm_source(ast)
+
+        if baseline_metrics is None:
+            baseline_metrics = {}
+        if planned_metrics is None:
+            planned_metrics = {}
+
+        # IR desde el source .lexo (usa el extractor definido arriba)
+        ast_ir = _ast_to_ir_for_linter(ast, raw_source=raw_source)
+
+        # DEBUG (temporal): confirmar que el extractor ve nodos/edges y care_network
+        
+        care_count = sum(1 for e in ast_ir["relations"] if "care_network" in (e.get("tags") or []))
+        
+        linter = EthicsLinter(rules_path)
+        ctx = build_lint_context(ast_ir, baseline_metrics, planned_metrics)
+        report = linter.run_pre(ctx)  # ← NO llamamos a run_linter otra vez
+        return report
+
+    
+    baseline_metrics = {"equity": 70, "trust": 60, "cohesion": 65}   # p.ej. {"equity": 70, "trust": 60, "cohesion": 65}
+    planned_metrics  = {"equity": 60, "trust": 61, "cohesion": 64}   # p.ej. {"equity": 60, "trust": 62, "cohesion": 64}
+
+    # Ejecutar linter (PRE)
+    report = run_linter(
+        ast,
+        "ethics_rules.yaml",
+        norm_source=None,
+        baseline_metrics=baseline_metrics,
+        planned_metrics=planned_metrics,
+        raw_source=source,   # 👈 importante
+    )
+    violations = report.violations
     append_changelog_lint("OK" if not violations else "FAIL", len(violations))
 
-    # 1️⃣ Si solo se pidió correr el linter
+    # 1) Si solo se pidió correr el linter
     if args.lint_only:
         sys.exit(0 if not violations else 1)
 
-    # 2️⃣ Política de bloqueo (por defecto activa)
-    fail_on_lint = True  # o cargarla desde rules si querés hacerlo dinámico
-    if violations and fail_on_lint and not args.no_lint_block:
-        print(f"[LINTER] 🚫 {len(violations)} violación(es). Abortando ejecución por política fail_on_lint.")
-        sys.exit(1)
-
-    # 3️⃣ Si hay violaciones pero no bloquean, se imprimen igualmente
+        # 3) Si hay violaciones pero no bloquean, se imprimen igualmente
     if violations:
         for v in violations:
-            print(f"[LINT] {v['code']}: {v['msg']}  @ {v.get('where', '?')}")
+            print(f"[LINT] ({v.severity.upper()}) {v.rule_id}: {v.message}")
+            if getattr(v, "remediation", None):
+                print(f"       → Sugerencia: {v.remediation}")
 
+    # recién después decidís si bloqueás
+    fail_on_lint = True
+    if report.should_block and fail_on_lint and not args.no_lint_block: 
+        print(f"[LINTER] 🛑 {len(violations)} violación(es). Abortando ejecución por política fail_on_lint.")
+        sys.exit(1)
     # --- PARSEAR ---
     
     if ast is None:
@@ -1474,7 +1588,7 @@ if __name__ == "__main__":
         execute(rt, ast, finalize=True)
 
         # Post-ejecución (evalúa ética, persiste summary y actualiza changelog)
-        status, fails = execute_final(rt, run_id, save_network=not args.no_save_network)
+        status, fails = execute_final_post(rt, run_id, save_network=not args.no_save_network)
 
         # Respeto de --no-ethics-block
         if status == "BLOCKED" and args.no_ethics_block:
