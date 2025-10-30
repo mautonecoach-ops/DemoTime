@@ -1,0 +1,20 @@
+# Artefactos generados
+network*.png
+report*.csv
+report*.json
+run_*.json
+whatif*.csv
+whatif*.json
+
+# Cachés y entornos Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv
+venv/
+
+# Replit
+*.repl
+.replit
