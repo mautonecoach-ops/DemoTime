@@ -1,0 +1,57 @@
+schema:
+  version: 0.4
+  severities: [block, warn]
+  phases: [pre, post, both]
+  condition_types:
+    - metric_drop_percent
+    - min_links_per_node
+    - required_subnetwork
+    - expr
+  metrics_allowed: [equity, trust, cohesion]
+  defaults:
+    metric_drop_percent:
+      baseline_source: previous
+      max_drop_percent: 10
+    min_links_per_node:
+      min_degree: 1
+      ignore_types: []
+    required_subnetwork:
+      min_edges: 3
+
+rules:
+  - id: ETH-EXO-001
+    name: Caída de equidad
+    description: Evitar una caída brusca de la equidad de recursos entre estado base y plan propuesto.
+    severity: block
+    when: pre
+    condition:
+      type: metric_drop_percent
+      params:
+        metric: equity
+        baseline_source: previous
+        max_drop_percent: 10
+    remediation: Asegurar redistribuciones o acciones que conserven o mejoren la equidad.
+
+  - id: ETH-EXO-002
+    name: Vínculos mínimos por nodo
+    description: Prevenir nodos aislados o con conectividad insuficiente en la red de colaboración.
+    severity: warn
+    when: pre
+    condition:
+      type: min_links_per_node
+      params:
+        min_degree: 1
+        ignore_types: [resource_tmp]
+    remediation: Crear al menos un vínculo significativo por nodo o justificar el aislamiento.
+
+  - id: ETH-EXO-003
+    name: Subred de cuidado (care_network) requerida
+    description: Exigir presencia de vínculos/canales explícitos de cuidado y soporte mutuo.
+    severity: block
+    when: pre
+    condition:
+      type: required_subnetwork
+      params:
+        tag: care_network
+        min_edges: 3
+    remediation: Incorporar y etiquetar prácticas/relaciones de cuidado (mentoring, apoyo) hasta cumplir el mínimo.

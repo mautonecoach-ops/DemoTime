@@ -1,0 +1,115 @@
+// DEMO LEXO — ESMulti (Barrio Sur & Barrio Norte)
+
+// ===== Nodos =====
+crear_nodo comunidad("Barrio Sur")  { confianza: 65, resources: 18 }
+crear_nodo comunidad("Barrio Norte") { confianza: 58, resources: 16 }
+
+crear_nodo persona("Lucía") { confianza: 60, energía: 80, resources: 2 }
+crear_nodo persona("Mateo") { confianza: 62, energía: 70, resources: 2 }
+crear_nodo persona("Ayla")  { confianza: 50, energía: 65, resources: 1.5 }
+crear_nodo persona("Bruno") { confianza: 52, energía: 60, resources: 1.5 }
+crear_nodo persona("Ciro")  { confianza: 48, energía: 55, resources: 1.5 }
+crear_nodo persona("Nico")  { confianza: 55, energía: 60, resources: 2 }
+crear_nodo persona("Ana")   { confianza: 57, energía: 65, resources: 2 }
+
+// ===== Enlaces intra-comunidad =====
+conectar("Lucía","Barrio Sur") { confianza: 60, intensidad: ALTA }
+conectar("Mateo","Barrio Sur") { confianza: 60, intensidad: MEDIA }
+conectar("Ayla","Barrio Sur")  { confianza: 55, intensidad: MEDIA }
+conectar("Bruno","Barrio Sur") { confianza: 55, intensidad: MEDIA }
+conectar("Ciro","Barrio Sur")  { confianza: 50, intensidad: MEDIA }
+
+conectar("Nico","Barrio Norte") { confianza: 58, intensidad: MEDIA }
+conectar("Ana","Barrio Norte")  { confianza: 59, intensidad: MEDIA }
+
+// Triángulos básicos
+conectar("Lucía","Mateo")   { confianza: 58, intensidad: BAJA }
+conectar("Ayla","Bruno")    { confianza: 52, intensidad: BAJA }
+conectar("Nico","Ana")      { confianza: 57, intensidad: BAJA }
+
+// ===== Enlaces cruzados (puentes) =====
+conectar("Lucía","Nico") { confianza: 54, intensidad: MEDIA }
+conectar("Bruno","Ana")  { confianza: 53, intensidad: MEDIA }
+
+// ===== Políticas condicionales locales =====
+intervenir_si (comunidad("Barrio Sur").confianza < 70) {
+  lanzar_iniciativa "Encuentro Sur" {
+    target: "Barrio Sur",
+    trust_boost: 12
+  }
+} contribuir_sino {
+  fortalecer_vínculos("Barrio Sur", intensidad=MEDIA)
+}
+
+intervenir_si (comunidad("Barrio Norte").confianza < 62) {
+  lanzar_iniciativa "Encuentro Norte" {
+    target: "Barrio Norte",
+    trust_boost: 10
+  }
+} contribuir_sino {
+  fortalecer_vínculos("Barrio Norte", intensidad=MEDIA)
+}
+
+// ===== Acciones focalizadas =====
+fortalecer_vínculos("Ayla")  { intensidad: ALTA }
+fortalecer_vínculos("Ciro")  { intensidad: MEDIA }
+cuidar_red("Barrio Sur")     { intensity: MEDIA, plan_mitigación: "asambleas y mentorías" }
+
+redistribuir_recursos("Barrio Sur","Ayla")  { fraction: 0.15, min_left: 9.0 }
+redistribuir_recursos("Barrio Sur","Ciro")  { fraction: 0.12, min_left: 9.0 }
+
+redistribuir_recursos("Barrio Norte","Nico") { fraction: 0.10, min_left: 8.0 }
+redistribuir_recursos("Barrio Norte","Ana")  { fraction: 0.08,  min_left: 8.0 }
+
+// ===== Escenarios WHAT_IF =====
+what_if "Mentorías en Sur" {
+  apply {
+    fortalecer_vínculos("Ayla") { intensidad: ALTA }
+    fortalecer_vínculos("Ciro") { intensidad: MEDIA }
+  }
+  compare: ["trust","cohesion","equity"]
+}
+
+what_if "Mentorías en Norte" {
+  apply {
+    fortalecer_vínculos("Nico") { intensidad: ALTA }
+    fortalecer_vínculos("Ana")  { intensidad: MEDIA }
+  }
+  compare: ["trust","cohesion","equity"]
+}
+
+what_if "Puentes extra" {
+  apply {
+    conectar("Mateo","Nico") { confianza: 55, intensidad: MEDIA }
+    conectar("Lucía","Ana")  { confianza: 55, intensidad: MEDIA }
+  }
+  compare: ["cohesion","trust","equity"]
+}
+
+what_if "Puentes + Redistribución" {
+  apply {
+    conectar("Ciro","Nico")    { confianza: 54, intensidad: MEDIA }
+    conectar("Ayla","Ana")     { confianza: 54, intensidad: MEDIA }
+    redistribuir_recursos("Barrio Sur","Bruno")   { fraction: 0.10, min_left: 8.5 }
+    redistribuir_recursos("Barrio Norte","Bruno") { fraction: 0.05, min_left: 7.5 }
+  }
+  compare: ["cohesion","equity","trust"]
+}
+
+// Más triángulos internos para subir cohesión
+conectar("Bruno","Lucía")  { confianza: 54, intensidad: MEDIA }
+conectar("Mateo","Ayla")   { confianza: 53, intensidad: MEDIA }
+
+// Más puentes cruzados (cohesión intercomunidades)
+conectar("Ciro","Nico")    { confianza: 54, intensidad: MEDIA }
+conectar("Ayla","Ana")     { confianza: 54, intensidad: MEDIA }
+
+// Redistribución suave para llevar equidad por encima de 60
+redistribuir_recursos("Barrio Sur","Bruno")  { fraction: 0.10, min_left: 8.5 }
+redistribuir_recursos("Barrio Norte","Bruno"){ fraction: 0.05, min_left: 7.5 }
+
+SHOW_WHAT_IF_TABLE ["trust","cohesion","equity"]
+
+// ===== Métricas y visual =====
+medir_impacto comunidad("Barrio Sur") en dimensión("confianza","cohesión","equidad")
+mostrar_red

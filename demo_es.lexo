@@ -4,47 +4,82 @@
 crear_nodo comunidad("Barrio Sur") { confianza: 65, resources: 20 }
 crear_nodo persona("Lucía") { confianza: 60, energía: 80, resources: 2 }
 crear_nodo persona("Mateo") { confianza: 62, energía: 70, resources: 2 }
-crear_nodo persona("Ayla")  { confianza: 50, energía: 65, resources: 1 }
-crear_nodo persona("Bruno") { confianza: 52, energía: 60, resources: 1 }
-crear_nodo persona("Ciro")  { confianza: 48, energía: 55, resources: 1 }
+crear_nodo persona("Ayla") { confianza: 50, energía: 65, resources: 1.5}
+crear_nodo persona("Bruno") { confianza: 52, energía: 60, resources: 1.5}
+crear_nodo persona("Ciro") { confianza: 48, energía: 55, resources: 1.5}
 
 // ===== Enlaces con triángulos (cohesión) =====
-conectar("Ayla","Barrio Sur")  { confianza: 55, intensidad: MEDIA }
+conectar("Ayla","Barrio Sur") { confianza: 55, intensidad: MEDIA }
 conectar("Bruno","Barrio Sur") { confianza: 55, intensidad: MEDIA }
-conectar("Ayla","Bruno")       { confianza: 52, intensidad: BAJA }
+conectar("Ayla","Bruno") { confianza: 52, intensidad: BAJA }
 
-conectar("Ciro","Barrio Sur")  { confianza: 55, intensidad: MEDIA }
-conectar("Ciro","Ayla")        { confianza: 50, intensidad: MEDIA }
-conectar("Bruno","Lucía")      { confianza: 55, intensidad: MEDIA }
+conectar("Ciro","Barrio Sur") { confianza: 55, intensidad: MEDIA }
+conectar("Ciro","Ayla") { confianza: 50, intensidad: MEDIA }
+conectar("Bruno","Lucía") { confianza: 55, intensidad: MEDIA }
 
-conectar("Lucía","Barrio Sur") { confianza: 60, intensidad: ALTA }
-conectar("Mateo","Barrio Sur") { confianza: 60, intensidad: MEDIA }
-conectar("Lucía","Mateo")      { confianza: 58, intensidad: BAJA }
+conectar("Lucía","Barrio Sur") { confianza: 60, intensidad: ALTA, tags: ["care_network"] }
+conectar("Mateo","Barrio Sur") { confianza: 60, intensidad: MEDIA, tags: ["care_network"] }
+conectar("Ayla","Barrio Sur")  { confianza: 55, intensidad: MEDIA, tags: ["care_network"] }
+conectar("Lucía","Mateo") { confianza: 58, intensidad: BAJA }
 
 // ===== Política condicional (sube confianza de la comunidad) =====
 intervenir_si (comunidad("Barrio Sur").confianza < 70) {
-  lanzar_iniciativa "Encuentro vecinal" {
-    target: "Barrio Sur",
-    trust_boost: 18
-  }
+lanzar_iniciativa "Encuentro vecinal" {
+target: "Barrio Sur",
+trust_boost: 18
+}
 } contribuir_sino {
-  fortalecer_vínculos("Barrio Sur", intensidad=MEDIA)
+fortalecer_vínculos("Barrio Sur", intensidad=MEDIA)
 }
 
 // ===== Acciones focalizadas (confianza + equidad) =====
-fortalecer_vínculos("Ayla")  { intensidad: ALTA }
+fortalecer_vínculos("Ayla") { intensidad: ALTA }
 fortalecer_vínculos("Bruno") { intensidad: MEDIA }
-fortalecer_vínculos("Ciro")  { intensidad: MEDIA }
+fortalecer_vínculos("Ciro") { intensidad: MEDIA }
 
+cuidar_red("Barrio Sur") {
+intensity: MEDIUM,
+plan_mitigación: "asambleas y mentorías"
+}
 
-cuidar_red("Barrio Sur", intensidad=ALTA, plan_mitigación="asambleas y mentorías")
-
-// Redistribución equilibrada: total transferido ≈ 9–10, dejando min_left=10 en la comunidad
-redistribuir_recursos("Barrio Sur","Ayla")  { fraction: 0.20, min_left: 10 }
+// ===== Redistribución (bajar concentración < 30% y elevar mínimos) =====
 redistribuir_recursos("Barrio Sur","Bruno") { fraction: 0.15, min_left: 10 }
-redistribuir_recursos("Barrio Sur","Ciro")  { fraction: 0.15, min_left: 10 }
+redistribuir_recursos("Barrio Sur","Ayla") { fraction: 0.12, min_left: 8.0 }
+redistribuir_recursos("Barrio Sur","Ciro") { fraction: 0.08, min_left: 8.0 }
+redistribuir_recursos("Barrio Sur","Lucía") { fraction: 0.02, min_left: 8.0 }
+
+// — Paso final para bajar concentración a ~30%
+redistribuir_recursos("Barrio Sur","Ayla") { fraction: 0.25, min_left: 8.0 }  // ~13.49 → ~10.12
+redistribuir_recursos("Barrio Sur","Ciro") { fraction: 0.20, min_left: 8.0 }  // ~10.12 → ~8.10
+
+// Afinar confianza promedio
+fortalecer_vínculos("Ciro") { intensidad: ALTA }
+fortalecer_vínculos("Ayla") { intensidad: MEDIA }
+fortalecer_vínculos("Bruno") { intensidad: MEDIA }
+fortalecer_vínculos("Lucía") { intensidad: MEDIA }
+fortalecer_vínculos("Mateo") { intensidad: MEDIA }
+
+// Aumentar cohesión creando triángulos nuevos
+conectar("Ciro","Lucía") { confianza: 55, intensidad: MEDIA }
+conectar("Bruno","Mateo") { confianza: 55, intensidad: MEDIA }
+
+what_if "Mentorías focalizadas" {
+  apply {
+    fortalecer_vínculos("Ayla") { intensidad: ALTA }
+    fortalecer_vínculos("Ciro") { intensidad: MEDIA }
+  }
+  compare: ["trust","equity"]
+}
+
+what_if "Redistribución suave" {
+  apply {
+    redistribuir_recursos("Barrio Sur","Ayla") { fraction: 0.10, min_left: 8.0 }
+    redistribuir_recursos("Barrio Sur","Ciro") { fraction: 0.08,  min_left: 8.0 }
+  }
+  compare: ["equity","trust","cohesion"]
+}
+SHOW_WHAT_IF_TABLE ["trust","cohesion","equity"]
 
 // ===== Métricas y visual =====
 medir_impacto comunidad("Barrio Sur") en dimensión("confianza","cohesión","equidad")
 mostrar_red
-

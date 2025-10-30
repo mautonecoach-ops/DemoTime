@@ -1,37 +1,50 @@
-// DEMO LEXO – Stress test (Barrio Sur II)
+// DEMO LEXO – Stress test (concentración + baja confianza)
 
-// 1) Declaraciones (distribución muy desigual y confianzas bajas)
-crear_nodo comunidad("Barrio Sur II") { confianza: 50, cohesión: 20, resources: 18 }
-crear_nodo persona("Ayla")  { confianza: 45, resources: 1 }
-crear_nodo persona("Bruno") { confianza: 48, resources: 1 }
-crear_nodo persona("Ciro")  { confianza: 52, resources: 0 }
+// ===== Nodos =====
+crear_nodo comunidad("Barrio Sur") { confianza: 45, resources: 30 }
+crear_nodo persona("Ayla")  { confianza: 40, resources: 1.5 }
+crear_nodo persona("Bruno") { confianza: 42, resources: 1.5 }
+crear_nodo persona("Ciro")  { confianza: 38, resources: 1.5 }
+crear_nodo persona("Lucía") { confianza: 44, resources: 1.5 }
 
-# 2) Pocas conexiones (cohesión baja, posibles nodos casi aislados)
-conectar("Ayla","Barrio Sur II")  { confianza: 45, intensidad: BAJA }
-conectar("Bruno","Barrio Sur II") { confianza: 48, intensidad: BAJA }
-// Ciro arranca sin conexiones → casi aislado
+// ===== Enlaces débiles (baja cohesión) =====
+conectar("Ayla","Barrio Sur")  { confianza: 40, intensidad: BAJA }
+conectar("Bruno","Barrio Sur") { confianza: 42, intensidad: BAJA }
+conectar("Ciro","Barrio Sur")  { confianza: 38, intensidad: BAJA }
+conectar("Lucía","Barrio Sur") { confianza: 44, intensidad: BAJA }
 
-# 3) Condicional (debería entrar por confianza < 65)
-intervenir_si (comunidad("Barrio Sur II").confianza < 65) {
-  lanzar_iniciativa "Mateada comunitaria" { target: "Barrio Sur II", trust_boost: 10 }
-} contribuir_sino {
-  fortalecer_vínculos("Barrio Sur II", intensidad=MEDIA)
+// ===== Concentración de recursos y estresado del linter =====
+redistribuir_recursos("Barrio Sur","Ayla")  { fraction: 0.15, min_left: 22 }
+redistribuir_recursos("Barrio Sur","Bruno") { fraction: 0.15, min_left: 22 }
+redistribuir_recursos("Barrio Sur","Ciro")  { fraction: 0.15, min_left: 22 }
+redistribuir_recursos("Barrio Sur","Lucía") { fraction: 0.10, min_left: 22 }
+
+fortalecer_vínculos("Ayla")  { intensidad: MEDIA }
+fortalecer_vínculos("Bruno") { intensidad: MEDIA }
+fortalecer_vínculos("Ciro")  { intensidad: MEDIA }
+cuidar_red("Barrio Sur") { intensity: BAJA, plan_mitigación: "rondas de escucha" }
+
+// ===== WHAT_IF para estresar redistribución =====
+what_if "Más redistribución" {
+  apply {
+    redistribuir_recursos("Barrio Sur","Ayla")  { fraction: 0.20, min_left: 20 }
+    redistribuir_recursos("Barrio Sur","Ciro")  { fraction: 0.20, min_left: 20 }
+  }
+  compare: ["equity","trust","cohesion"]
 }
 
-# 4) Acciones que el linter suele sugerir (equidad + cuidado de vínculos + conectar aislados)
-redistribuir_recursos("Barrio Sur II","Ciro") { fraction: 0.25, min_left: 8 }
-cuidar_red("Barrio Sur II", intensity=ALTA, plan_mitigación="asambleas + mentorías")
-conectar("Ciro","Ayla") { confianza: 50, intensidad: MEDIA }
+what_if "Subir confianzas" {
+  apply {
+    fortalecer_vínculos("Ayla")  { intensidad: ALTA }
+    fortalecer_vínculos("Bruno") { intensidad: ALTA }
+    fortalecer_vínculos("Ciro")  { intensidad: MEDIA }
+  }
+  compare: ["trust","cohesion"]
+}
 
-// Asegurar triángulos en el componente principal
-conectar("Ayla","Barrio Sur II")  { confianza: 55, intensidad: MEDIA }
-conectar("Bruno","Barrio Sur II") { confianza: 55, intensidad: MEDIA }
-conectar("Ayla","Bruno")          { confianza: 52, intensidad: BAJA }
+// Mostrar resumen de WHAT_IF (si no se usa --no-whatif-table)
+SHOW_WHAT_IF_TABLE ["trust","cohesion","equity"]
 
-conectar("Ciro","Barrio Sur II")  { confianza: 55, intensidad: MEDIA }
-conectar("Ciro","Ayla")           { confianza: 50, intensidad: MEDIA }
-
-
-# 5) Métrica y visual
-medir_impacto comunidad("Barrio Sur II") en dimensión("confianza","cohesión","equidad")
+// ===== Métricas y visual =====
+medir_impacto comunidad("Barrio Sur") en dimensión("confianza","cohesion","equidad")
 mostrar_red

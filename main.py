@@ -6,13 +6,16 @@
 # =========================
 # IMPORTS
 # =========================
+from linter import EthicsLinter 
+from core_helpers import append_changelog_lint
+from core_helpers import build_lint_context
+
 # Standard library
 import sys
 import os
 import re
 import json
 import math
-import argparse
 import networkx as nx
 import matplotlib
 import time
@@ -21,24 +24,40 @@ import random
 matplotlib.use("Agg")  # evita crash por display en Replit
 import matplotlib.pyplot as plt
 import warnings
+import argparse
+import hashlib
+
+from core_helpers import (
+    begin_run, end_run,
+    load_ethics_thresholds, blocker_decision,
+    write_blockade_summary, append_changelog, ensure_whatif_never_mutates,
+)
+
 
 warnings.filterwarnings(
     "ignore",
-    message=
-    "This figure includes Axes that are not compatible with tight_layout",
-    category=UserWarning)
+import warnings
+import time
+import random
+
+# Silenciar warning de matplotlib/tight_layout
+warnings.filterwarnings(
+    "ignore",
+    message="This figure includes Axes that are not compatible with tight_layout",
+    category=UserWarning,
+)
 
 RUN_TS = time.strftime("%Y-%m-%d %H:%M:%S")
-
 random.seed(42)
 
 # =========================
 # FLAGS DE DEBUG (on/off)
 # =========================
-DEBUG_MAIN = False  # prints en main()
-DEBUG_ACTIONS = False  # prints en acciones (execute/Runtime)
-DEBUG_MEASURE = False  # prints en métricas (Runtime.measure)
-DEBUG_WHATIF = True  # silencia dentro de WHAT_IF
+DEBUG_MAIN = False       # prints en main()
+DEBUG_ACTIONS = False    # prints en acciones (execute/Runtime)
+DEBUG_MEASURE = False    # prints en métricas (Runtime.measure)
+DEBUG_WHATIF = False     # silencia dentro de WHAT_IF
+
 # =========================
 # Globals y helpers ETHICS (mínimo)
 # =========================
@@ -75,7 +94,7 @@ def apply_ethics_yaml_once(path="ethics.yaml"):
             data = yaml.safe_load(f) or {}
         if isinstance(data, dict) and data:
             ETHICS.update(data)
-            print("[ETHICS] Umbrales cargados desde ethics.yaml")
+            
     except Exception:
         pass
     ETHICS_LOADED = True
@@ -416,8 +435,6 @@ def evaluate_ethics(rt, start_snap, final_snap, start_metrics, final_metrics):
 # - reconoce bloques por llaves
 # - reconoce las sentencias clave por prefix
 # =========================
-import re
-
 _bool_like = {"true": True, "false": False, "TRUE": True, "FALSE": False}
 _ident_like = {
     "ALTO": "HIGH",
@@ -1753,9 +1770,73 @@ def gini(xs):
     return g
 
 
+# ———— PRE-LINTER v0.4 (hook) ————
+from linter import EthicsLinter
+from core_helpers import build_lint_context
+
+def _ast_to_ir_for_linter(ast) -> dict:
+    """
+    Conversión mínima y tolerante del AST a IR para el linter.
+    Si ya tenés un builder/serializer propio, usalo y reemplazá esta función.
+    """
+    ir = {"nodes": [], "relations": []}
+    try:
+        for kind, type_name, name, props in getattr(ast, "decls", []):
+            if kind == "CREATE_NODE":
+                ir["nodes"].append({
+                    "name": name,
+                    "type": type_name,
+                    **(props or {})
+                })
+            elif kind in ("CREATE_EDGE", "CONNECT", "LINK"):
+                # Ajustá si tu AST usa otra tupla/estructura para relaciones
+                src = props.get("source") if props else None
+                tgt = props.get("target") if props else None
+                tags = props.get("tags") if props else []
+                if src and tgt:
+                    ir["relations"].append({"source": src, "target": tgt, "tags": tags})
+    except Exception:
+        # Fallback tolerante: si algo falla, el linter seguirá pudiendo evaluar reglas de métricas
+        pass
+    return ir
+
+def _print_lint_report(report):
+    if not report.violations:
+        print(f"[LINTER][{report.phase}] ✅ Sin violaciones.")
+        return
+    print(f"[LINTER][{report.phase}] ⚠️  Violaciones encontradas:")
+    for v in report.violations:
+        print(f"  - ({v.severity.upper()}) {v.rule_id}: {v.message}")
+        if v.remediation:
+            print(f"      → Sugerencia: {v.remediation}")
+
+def _persist_blockade_summary(report):
+    import json, time
+    payload = {
+        "phase": report.phase,
+        "blocked": True,
+        "violations": [
+            {
+                "rule_id": v.rule_id,
+                "severity": v.severity,
+                "message": v.message,
+                "remediation": v.remediation,
+            } for v in report.violations
+        ],
+        "ts": int(time.time()),
+        "version": "v0.4",
+    }
+    with open("blockade_summary.json", "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+    print("[LINTER] 🛑 Bloqueo ético — se guardó blockade_summary.json")
+# ———— FIN PRE-LINTER v0.4 ————
+
+
 # =========================
 # EJECUCIÓN DEL AST
 # =========================
+final_metrics = None
+
 def execute(rt: Runtime,
             ast: AST,
             finalize: bool = True,
@@ -1770,7 +1851,7 @@ def execute(rt: Runtime,
     # 2) Snapshot inicial
     start_m = rt.measure()
     start_snap = snapshot_state(rt)
-
+    
     # 3) Acciones
     for act in ast.actions:
         tag = act[0]
@@ -1872,6 +1953,9 @@ def execute(rt: Runtime,
             sel = {k: metrics[k] for k in dims if k in metrics}
             print(">> Impacto:", json.dumps(sel, ensure_ascii=False))
 
+            rt.final_metrics = metrics            # ⬅️ GUARDAR AQUÍ
+            continue
+
         elif tag == "SHOW_NETWORK":
             rt.show_network(title="LEXO v0.1 – Red")
 
@@ -1939,15 +2023,31 @@ def execute(rt: Runtime,
         # CSV de métricas (si ya tenías esta función, la dejamos)
         save_report_csv(final_m, alerts, path="report.csv")
 
-        # Exportes WHAT_IF “de cortesía” si hay escenarios y aún no se guardaron
-        global WHATIF_SAVED
-        if WHATIF_LOG and not WHATIF_SAVED:
-            wi_json = f"whatif_{run_id}.json" if run_id else "whatif.json"
-            wi_csv = f"whatif_{run_id}.csv" if run_id else "whatif.csv"
-            save_whatif_json(wi_json)
-            save_whatif_csv(wi_csv)
-            WHATIF_SAVED = True
+def gini(values):
+    """
+    Calcula el coeficiente de Gini de una lista de valores.
+    Devuelve un número entre 0 (perfecta igualdad) y 1 (máxima desigualdad).
+    """
+    if not values:
+        return 0.0
+    sorted_vals = sorted(values)
+    n = len(values)
+    cumulative = 0
+    for i, val in enumerate(sorted_vals, start=1):
+        cumulative += i * val
+    total = sum(sorted_vals)
+    if total == 0:
+        return 0.0
+    return (2 * cumulative) / (n * total) - (n + 1) / n
 
+    # Exportes WHAT_IF “de cortesía” si hay escenarios y aún no se guardaron
+    global WHATIF_SAVED
+    if WHATIF_LOG and not WHATIF_SAVED:
+         wi_json = f"whatif_{run_id}.json" if run_id else "whatif.json"
+         wi_csv = f"whatif_{run_id}.csv" if run_id else "whatif.csv"
+         save_whatif_json(wi_json)
+         save_whatif_csv(wi_csv)
+         WHATIF_SAVED = True
 
 def canonicalize_props(props: dict) -> dict:
     """Mapea claves ES/EN a nombres canónicos internos."""
@@ -1972,7 +2072,6 @@ def canonicalize_props(props: dict) -> dict:
     for k, v in props.items():
         out[m.get(k, k)] = v
     return out
-
 
 def eval_block(rt: Runtime, code_block: str):
     """Evalúa un sub-bloque de acciones simple (sin IF anidados en el MVP).
@@ -2075,6 +2174,8 @@ def snapshot_state(rt):
     degrees = dict(rt.graph.degree())
     # Gini
     g = gini(resources) if resources else 0.0
+    equity = 1.0 - g   # así lo transformás en "equidad" (a mayor desigualdad, menor equity)
+
 
     return {
         "edges": edges,
@@ -2086,56 +2187,131 @@ def snapshot_state(rt):
     }
 
 
+# Importá tus propias piezas del proyecto (ajusta estos imports a tus módulos reales)
+# from your_lexo_module import normalize_source, parse_program, Runtime, execute
+# ^^^ Ajusta los nombres/ubicaciones de estas funciones/clases según tu repo
+
+# Helpers centrales (ya creados en core_helpers.py)
+
+
+# Si ya definiste execute_final() antes, podés borrar esta función.
+# La dejo acá por si lo necesitás localmente.
+# v0.4 – validación previa con el linter ético
+
+def execute_final_post(rt, run_id, save_network=True):
+    """
+    Cierra la corrida post-ejecución:
+    - Evalúa umbrales finales.
+    - Escribe blockade_summary.json y CHANGELOG.md.
+    """
+    final_metrics = getattr(rt, "final_metrics", None)
+    if final_metrics is None:
+        print("[EXEC_FINAL] No hay métricas finales; abortando.")
+        return ("BLOCKED", [("metrics", 0, "present")])
+
+    try:
+        ensure_whatif_never_mutates(rt)
+    except NameError:
+        pass
+
+    thresholds = load_ethics_thresholds("ethics.yaml")
+    print("[ETHICS] Umbrales cargados:", thresholds)
+
+    fails = blocker_decision(final_metrics, thresholds)
+
+    write_blockade_summary(run_id, final_metrics, thresholds, fails)
+    append_changelog("BLOCKED" if fails else "OK", final_metrics, fails, "CHANGELOG.md")
+
+    if fails:
+        print("🚫 BLOQUEADO por ética/umbrales.")
+        return ("BLOCKED", fails)
+    else:
+        print("✅ OK (cumple umbrales éticos).")
+        return ("OK", [])
+
+# =====================================================
+# MAIN — CLI de entrada
+# =====================================================
+if __name__ == "__main__":
+    # --- CLI ---
+  
 def runtime_from_snapshot(snap) -> "Runtime":
     """
-    Construye un Runtime nuevo desde un snapshot_state(rt).
-    Soporta formatos de nodos: 
-      - [{"name":..., "props": {...}}] 
-      - o [{"id":..., "props": {...}}]
-    y de aristas:
-      - [(u, v, props)]  o  [{"u":..., "v":..., "props": {...}}]
+    Recrea un Runtime a partir de un snapshot.
+    SOPORTA:
+      Nodos:
+        - lista de dicts: [{"name":..., "props": {...}}] o [{"id":..., "props": {...}}]
+        - dict mapeado:  {"NombreNodo": {"type": "...", ...}, ...}
+      Aristas:
+        - lista de tuplas: [(u, v, props)]
+        - lista de dicts: [{"u":..., "v":..., "props": {...}}]
+        - lista de dicts: [{"source":..., "target":..., "attrs": {...}}]
     """
-    rt2 = Runtime()
+    rt = Runtime()
+
+    # --- helper para agregar aristas con API compatible ---
+    def _add_edge(rt, u, v, props: dict):
+        # preferí connect(u, v, props) si existe; si no, caé a add_edge(u, v, **props)
+        if hasattr(rt, "connect") and callable(getattr(rt, "connect")):
+            rt.connect(u, v, props or {})
+        elif hasattr(rt, "add_edge") and callable(getattr(rt, "add_edge")):
+            rt.add_edge(u, v, **(props or {}))
+        else:
+            raise RuntimeError("Runtime no expone connect(...) ni add_edge(...).")
 
     # --- nodos ---
     nodes = snap.get("nodes", [])
-    for item in nodes:
-        if isinstance(item, dict):
-            name = item.get("name") or item.get("id")
-            props = dict(item.get("props", {}))
-        else:
-            # fallback por si fuese una tupla (name, props)
-            try:
-                name, props = item
-                props = dict(props or {})
-            except Exception:
+    if isinstance(nodes, dict):
+        # formato: {"Nodo": {...}, ...}
+        for name, data in nodes.items():
+            props = dict(data or {})
+            kind = (props.get("kind") or props.get("type") or "PERSON").upper()
+            # evitar duplicar kind/type en props
+            safe_props = {k: v for k, v in props.items() if k.lower() not in ("kind", "type")}
+            rt.ensure_node(kind, name, safe_props)
+    else:
+        # formato: lista
+        for item in nodes:
+            if isinstance(item, dict):
+                name = item.get("name") or item.get("id")
+                props = dict(item.get("props", {}))
+            else:
+                # fallback tupla (name, props)
+                try:
+                    name, props = item
+                    props = dict(props or {})
+                except Exception:
+                    continue
+            if not name:
                 continue
-
-        kind = (props.get("kind") or props.get("type") or "PERSON").upper()
-        # no duplicar 'kind' como atributo normal
-        safe_props = {
-            k: v
-            for k, v in props.items() if k.lower() not in ("kind", "type")
-        }
-        rt2.ensure_node(kind, name, safe_props)
+            kind = (props.get("kind") or props.get("type") or "PERSON").upper()
+            safe_props = {k: v for k, v in props.items() if k.lower() not in ("kind", "type")}
+            rt.ensure_node(kind, name, safe_props)
 
     # --- aristas ---
     edges = snap.get("edges", [])
     for e in edges:
+        u = v = None
+        props = {}
         if isinstance(e, dict):
-            u, v = e.get("u"), e.get("v")
-            props = dict(e.get("props", {}))
+            if "u" in e or "v" in e:                       # {"u":..., "v":..., "props": {...}}
+                u, v = e.get("u"), e.get("v")
+                props = dict(e.get("props", {}))
+            elif "source" in e or "target" in e:           # {"source":..., "target":..., "attrs": {...}}
+                u, v = e.get("source"), e.get("target")
+                props = dict(e.get("attrs", {}))
         else:
-            # fallback por si fuese una tupla (u, v, props)
+            # fallback tupla (u, v, props)
             try:
                 u, v, props = e
                 props = dict(props or {})
             except Exception:
                 continue
-        if u and v:
-            rt2.connect(u, v, props)
 
-    return rt2
+        if u and v:
+            _add_edge(rt, u, v, props)
+
+    return rt
 
 
 # --- fin snapshot ---
@@ -2151,12 +2327,151 @@ def main():
     apply_ethics_yaml_once("ethics.yaml")
 
     import argparse, hashlib, os, json
+
     parser = argparse.ArgumentParser()
     parser.add_argument("file",
                         nargs="?",
                         default="demo_es.lexo",
                         help="Archivo .lexo")
     parser.add_argument("--lang", choices=["es", "en"], default="es")
+
+    parser.add_argument("--lint-only", action="store_true",
+                        help="Ejecuta solo el linter y sale 0/1.")
+    parser.add_argument("--no-lint-block", action="store_true",
+                        help="No bloquea ejecución aunque haya violaciones de lint.")
+    parser.add_argument("--no-save-network", action="store_true",
+        help="No guarda network.png/report.* en execute_final.")
+    parser.add_argument("--no-ethics-block", action="store_true",
+        help="Si el blocker ético devuelve BLOCKED, continúa (exit 0).")
+
+    
+    args = parser.parse_args()
+
+    # --- LECTURA ---
+    try:
+        with open(args.file, "r", encoding="utf-8") as f:
+            source = f.read()
+    except FileNotFoundError:
+        print(f"[ERROR] No existe {args.file}. Corré: python main.py TU_ARCHIVO.lexo --lang=es")
+        sys.exit(1)
+
+    norm = normalize_source(source, args.lang)
+    ast = parse_program(norm)
+    print(f"[DEBUG] leyendo: {args.file}, bytes={len(source)}, sha1={hashlib.sha1(source.encode()).hexdigest()[:10]}")
+    print("[DEBUG] primeras líneas:\n" + "\n".join(source.splitlines()[:6]))
+
+    # --- LINTER PRE-EJECUCIÓN ---
+
+    # --- LINTER PRE-EJECUCIÓN ---
+  
+    import re
+
+    def _ast_to_ir_for_linter(ast, raw_source: str | None = None) -> dict:
+        """
+        Construye IR solo desde el source .lexo (robusto para el linter v0.4).
+        - Detecta crear_nodo tipo("Nombre")
+        - Detecta conectar("A","B") { ... tags: [ ... ] }
+        """
+        ir = {"nodes": [], "relations": []}
+        seen = set()
+
+        def add_node(name: str):
+            if name and name not in seen:
+                seen.add(name)
+                ir["nodes"].append({"name": name})
+
+        def add_edge(u: str, v: str, tags: list[str] | None = None):
+            if u and v:
+                ir["relations"].append({"source": u, "target": v, "tags": list(set(tags or []))})
+                add_node(u)
+                add_node(v)
+
+        text = raw_source if isinstance(raw_source, str) else (str(raw_source) if raw_source is not None else "")
+
+        if not isinstance(text, str):
+            return ir
+
+        # Nodos: crear_nodo Tipo("Nombre")
+        for m in re.finditer(r'conectar\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)\s*\{([\s\S]*?)\}', text, flags=re.I):
+
+            add_node(m.group(1))
+
+        # Relaciones: conectar("A","B") { ... } + tags: [ ... ]
+        for m in re.finditer(r'conectar\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)\s*\{([^}]*)\}', text, flags=re.I):
+            u, v, body = m.group(1), m.group(2), m.group(3)
+            tags = []
+            tmatch = re.search(r'tags\s*:\s*\[([^\]]*)\]', body, flags=re.I)
+            if tmatch:
+                raw = tmatch.group(1)
+                tags = [t.strip().strip('"').strip("'") for t in raw.split(",") if t.strip()]
+            add_edge(u, v, tags)
+
+        return ir
+
+    def run_linter(ast, rules_path="ethics_rules.yaml", norm_source=None,
+           baseline_metrics=None, planned_metrics=None, raw_source: str | None = None):
+        """
+        Compatibilidad v0.4: construye IR desde el source (raw_source) y ejecuta el PRE-lint.
+        Devuelve un LintReport (no una lista).
+        """
+        # (opcional) normalizar el AST si te pasan un normalizador callable
+        if callable(norm_source):
+            ast = norm_source(ast)
+
+        if baseline_metrics is None:
+            baseline_metrics = {}
+        if planned_metrics is None:
+            planned_metrics = {}
+
+        # IR desde el source .lexo (usa el extractor definido arriba)
+        ast_ir = _ast_to_ir_for_linter(ast, raw_source=raw_source)
+
+        # DEBUG (temporal): confirmar que el extractor ve nodos/edges y care_network
+        
+        care_count = sum(1 for e in ast_ir["relations"] if "care_network" in (e.get("tags") or []))
+        
+        linter = EthicsLinter(rules_path)
+        ctx = build_lint_context(ast_ir, baseline_metrics, planned_metrics)
+        report = linter.run_pre(ctx)  # ← NO llamamos a run_linter otra vez
+        return report
+
+    
+    baseline_metrics = {"equity": 70, "trust": 60, "cohesion": 65}   # p.ej. {"equity": 70, "trust": 60, "cohesion": 65}
+    planned_metrics  = {"equity": 60, "trust": 61, "cohesion": 64}   # p.ej. {"equity": 60, "trust": 62, "cohesion": 64}
+
+    # Ejecutar linter (PRE)
+    report = run_linter(
+        ast,
+        "ethics_rules.yaml",
+        norm_source=None,
+        baseline_metrics=baseline_metrics,
+        planned_metrics=planned_metrics,
+        raw_source=source,   # 👈 importante
+    )
+    violations = report.violations
+    append_changelog_lint("OK" if not violations else "FAIL", len(violations))
+
+    # 1) Si solo se pidió correr el linter
+    if args.lint_only:
+        sys.exit(0 if not violations else 1)
+
+        # 3) Si hay violaciones pero no bloquean, se imprimen igualmente
+    if violations:
+        for v in violations:
+            print(f"[LINT] ({v.severity.upper()}) {v.rule_id}: {v.message}")
+            if getattr(v, "remediation", None):
+                print(f"       → Sugerencia: {v.remediation}")
+
+    # recién después decidís si bloqueás
+    fail_on_lint = True
+    if report.should_block and fail_on_lint and not args.no_lint_block: 
+        print(f"[LINTER] 🛑 {len(violations)} violación(es). Abortando ejecución por política fail_on_lint.")
+        sys.exit(1)
+    # --- PARSEAR ---
+    
+    if ast is None:
+        print("[ERROR] parse_program devolvió None (revisá indentación y 'return ast').")
+
     parser.add_argument("--no-whatif-table",
                         action="store_true",
                         help="No imprimir la tabla comparativa de WHAT_IF")
@@ -2203,10 +2518,34 @@ def main():
         print(
             "[ERROR] parse_program devolvió None (revisá indentación y 'return ast')."
         )
+
         sys.exit(1)
     rt = Runtime()
     run_id = time.strftime("%Y%m%d_%H%M%S")
     execute(rt, ast, finalize=True, run_id=run_id)
+
+
+    # --- RUNTIME ---
+    run_id = begin_run()
+    try:
+        rt = Runtime()
+        execute(rt, ast, finalize=True)
+
+        # Post-ejecución (evalúa ética, persiste summary y actualiza changelog)
+        status, fails = execute_final_post(rt, run_id, save_network=not args.no_save_network)
+
+        # Respeto de --no-ethics-block
+        if status == "BLOCKED" and args.no_ethics_block:
+            print("⚠️  [ETHICS] Bloqueo ético anulado por --no-ethics-block (continuando).")
+            exit_code = 0
+        else:
+            exit_code = 0 if status == "OK" else 1
+
+        import sys
+        sys.exit(exit_code)
+
+    finally:
+        end_run(run_id, ok=True)
 
     m = rt.measure()
     print("== MÉTRICAS FINALES ==")
@@ -2249,3 +2588,4 @@ if __name__ == "__main__":
         if reasons:
             print("⚠️  AVISO:", "; ".join(reasons))
         critical_action()
+
