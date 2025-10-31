@@ -1,0 +1,54 @@
+[
+  {
+    "title": "Mentorías IN Sur",
+    "deltas": {
+      "trust": 1.78,
+      "cohesion": 0.0,
+      "equity": 0.0
+    },
+    "base": {
+      "trust": 61.22,
+      "cohesion": 36.0,
+      "equity": 56.66
+    }
+  },
+  {
+    "title": "Mentorías IN Norte",
+    "deltas": {
+      "trust": 1.78,
+      "cohesion": 0.0,
+      "equity": 0.0
+    },
+    "base": {
+      "trust": 61.22,
+      "cohesion": 36.0,
+      "equity": 56.66
+    }
+  },
+  {
+    "title": "Puentes extra",
+    "deltas": {
+      "cohesion": 5.67,
+      "trust": 0.0,
+      "equity": 0.0
+    },
+    "base": {
+      "trust": 61.22,
+      "cohesion": 36.0,
+      "equity": 56.66
+    }
+  },
+  {
+    "title": "Puentes + Redistribución",
+    "deltas": {
+      "cohesion": -0.71,
+      "equity": 6.3,
+      "trust": 0.0
+    },
+    "base": {
+      "trust": 61.22,
+      "cohesion": 36.0,
+      "equity": 56.66
+    }
+  }
+]

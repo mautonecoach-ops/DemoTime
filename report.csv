@@ -1,9 +1,2 @@
 trust,cohesion,equity
-48.75,0.0,66.67
-
-ALERTS
-"[ETHICS] La confianza promedio es 48.8 (< 90.0). Sugerencia: fortalecer_vínculos(target='comunidad', intensidad=MEDIA/ALTA) o lanzar_iniciativa."
-"[ETHICS] Nodos con confianza muy baja (<55.0): Barrio Sur II, Ayla, Bruno... Sugerencia: cuidar_red(target), mentorías o pequeñas victorias visibles."
-"[ETHICS] Nodos aislados o casi aislados: Barrio Sur II, Ayla, Bruno... Sugerencia: conectar(nodo, 'Barrio Sur') o introducir puentes."
-"[ETHICS] Nodos con recursos insuficientes (<2.0): Ayla, Bruno, Ciro... Sugerencia: redistribuir_recursos(dador, 'Ayla', fraction=0.1–0.3)."
-"[ETHICS] Un nodo concentra 90.0% de los recursos (> 30%). Sugerencia: redistribuir_recursos(dador_rico, receptor_con_menos, fraction=0.15–0.30)."
+72.17,67.74,75.7

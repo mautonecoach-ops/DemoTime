@@ -1,0 +1,42 @@
+{
+  "run_ts": "2025-08-27 20:46:24",
+  "final_metrics": {
+    "trust": 46.0,
+    "cohesion": 0.0,
+    "equity": 45.29
+  },
+  "ethics_alerts": [
+    "[ETHICS] La confianza promedio es 46.0 (< 65.0). Sugerencia: fortalecer_vínculos(target='comunidad', intensidad=MEDIA/ALTA) o lanzar_iniciativa.",
+    "[ETHICS] Nodos con confianza muy baja (<55.0): Barrio Sur, Ayla, Bruno... Sugerencia: cuidar_red(target), mentorías o pequeñas victorias visibles.",
+    "[ETHICS] Hay vínculos con confianza muy baja (<50.0), ej. Barrio Sur–Ayla. Sugerencia: cuidar_red('Barrio Sur' o 'Ayla', intensity=MEDIA/ALTA).",
+    "[ETHICS] Nodos con recursos insuficientes (<2.0): Ciro, Lucía... Sugerencia: redistribuir_recursos(dador, 'Ciro', fraction=0.1–0.3).",
+    "[ETHICS] Un nodo concentra 64.7% de los recursos (> 30%). Sugerencia: redistribuir_recursos(dador_rico, receptor_con_menos, fraction=0.15–0.30).",
+    "[ETHICS] La equidad bajó a 45.3 (< 60.0). Riesgo de concentración de recursos."
+  ],
+  "what_if": [
+    {
+      "title": "Más redistribución",
+      "deltas": {
+        "equity": 2.36,
+        "trust": 0.0,
+        "cohesion": 0.0
+      },
+      "pct": {
+        "equity": 5.21,
+        "trust": 0.0,
+        "cohesion": null
+      }
+    },
+    {
+      "title": "Subir confianzas",
+      "deltas": {
+        "trust": 5.2,
+        "cohesion": 0.0
+      },
+      "pct": {
+        "trust": 11.3,
+        "cohesion": null
+      }
+    }
+  ]
+}

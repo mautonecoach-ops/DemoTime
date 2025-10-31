@@ -1,0 +1,17 @@
+[
+  {
+    "title": "Más redistribución",
+    "deltas": {
+      "equity": 2.36,
+      "trust": 0.0,
+      "cohesion": 0.0
+    }
+  },
+  {
+    "title": "Subir confianzas",
+    "deltas": {
+      "trust": 5.2,
+      "cohesion": 0.0
+    }
+  }
+]

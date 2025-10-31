@@ -1,0 +1,46 @@
+[
+  {
+    "title": "Más redistribución",
+    "deltas": {
+      "equity": 2.36,
+      "trust": 0.0,
+      "cohesion": 0.0
+    },
+    "pct": {
+      "equity": 5.210863325237359,
+      "trust": 0.0,
+      "cohesion": null
+    },
+    "base": {
+      "trust": 46.0,
+      "cohesion": 0.0,
+      "equity": 45.29
+    },
+    "new": {
+      "trust": 46.0,
+      "cohesion": 0.0,
+      "equity": 47.65
+    }
+  },
+  {
+    "title": "Subir confianzas",
+    "deltas": {
+      "trust": 5.2,
+      "cohesion": 0.0
+    },
+    "pct": {
+      "trust": 11.304347826086962,
+      "cohesion": null
+    },
+    "base": {
+      "trust": 46.0,
+      "cohesion": 0.0,
+      "equity": 45.29
+    },
+    "new": {
+      "trust": 51.2,
+      "cohesion": 0.0,
+      "equity": 45.29
+    }
+  }
+]

@@ -1,0 +1,56 @@
+[
+  {
+    "title": "¿Qué piso y fracción rompen el 30%?",
+    "deltas": {
+      "equity": 0.0,
+      "trust": 0.0,
+      "cohesion": 0.0
+    },
+    "pct": {
+      "equity": 0.0,
+      "trust": 0.0,
+      "cohesion": 0.0
+    },
+    "base": {
+      "trust": 66.6,
+      "cohesion": 78.95,
+      "equity": 83.05
+    }
+  },
+  {
+    "title": "Plan A (piso 8.0, 1.5%)",
+    "deltas": {
+      "equity": 0.0,
+      "trust": 0.0,
+      "cohesion": 0.0
+    },
+    "pct": {
+      "equity": 0.0,
+      "trust": 0.0,
+      "cohesion": 0.0
+    },
+    "base": {
+      "trust": 66.6,
+      "cohesion": 78.95,
+      "equity": 83.05
+    }
+  },
+  {
+    "title": "Plan A + 1 toque extra",
+    "deltas": {
+      "equity": 0.0,
+      "trust": 0.0,
+      "cohesion": 0.0
+    },
+    "pct": {
+      "equity": 0.0,
+      "trust": 0.0,
+      "cohesion": 0.0
+    },
+    "base": {
+      "trust": 66.6,
+      "cohesion": 78.95,
+      "equity": 83.05
+    }
+  }
+]

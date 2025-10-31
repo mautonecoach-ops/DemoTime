@@ -8,3 +8,6 @@ MPLBACKEND = "Agg"
 
 [agent]
 integrations = ["styling_replit==1.0.0"]
+
+[nix]
+packages = ["gh"]

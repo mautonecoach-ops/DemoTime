@@ -1,0 +1,74 @@
+[
+  {
+    "title": "Mentorías suaves",
+    "deltas": {
+      "trust": 2.4,
+      "cohesion": 0.0,
+      "equity": 0.0
+    },
+    "pct": {
+      "trust": 4.04,
+      "cohesion": 0.0,
+      "equity": 0.0
+    },
+    "base": {
+      "trust": 59.4,
+      "cohesion": 54.55,
+      "equity": 66.68
+    }
+  },
+  {
+    "title": "Redistribución mínima",
+    "deltas": {
+      "equity": 2.32,
+      "trust": 0.0,
+      "cohesion": 0.0
+    },
+    "pct": {
+      "equity": 3.48,
+      "trust": 0.0,
+      "cohesion": 0.0
+    },
+    "base": {
+      "trust": 59.4,
+      "cohesion": 54.55,
+      "equity": 66.68
+    }
+  },
+  {
+    "title": "Paquete suave",
+    "deltas": {
+      "trust": 2.4,
+      "cohesion": 0.0,
+      "equity": 4.99
+    },
+    "pct": {
+      "trust": 4.04,
+      "cohesion": 0.0,
+      "equity": 7.48
+    },
+    "base": {
+      "trust": 59.4,
+      "cohesion": 54.55,
+      "equity": 66.68
+    }
+  },
+  {
+    "title": "Paquete moderado",
+    "deltas": {
+      "trust": 4.0,
+      "cohesion": 0.0,
+      "equity": 5.52
+    },
+    "pct": {
+      "trust": 6.73,
+      "cohesion": 0.0,
+      "equity": 8.28
+    },
+    "base": {
+      "trust": 59.4,
+      "cohesion": 54.55,
+      "equity": 66.68
+    }
+  }
+]

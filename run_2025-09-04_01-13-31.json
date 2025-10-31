@@ -1,0 +1,15 @@
+{
+  "run_ts": "2025-09-04_01-13-31",
+  "final_metrics": {
+    "trust": 66.6,
+    "cohesion": 78.95,
+    "equity": 85.53
+  },
+  "ethics_alerts": [],
+  "what_if": [],
+  "artifacts": {
+    "network_png": "network_2025-09-04_01-13-31.png",
+    "whatif_json": "whatif_2025-09-04_01-13-31.json",
+    "whatif_csv": "whatif_2025-09-04_01-13-31.csv"
+  }
+}

@@ -1,0 +1,94 @@
+[
+  {
+    "title": "Mentorías IN Sur",
+    "deltas": {
+      "trust": 1.78,
+      "cohesion": 0.0,
+      "equity": 0.0
+    },
+    "pct": {
+      "trust": 2.907546553413919,
+      "cohesion": 0.0,
+      "equity": 0.0
+    },
+    "base": {
+      "trust": 61.22,
+      "cohesion": 36.0,
+      "equity": 56.66
+    },
+    "new": {
+      "trust": 63.0,
+      "cohesion": 36.0,
+      "equity": 56.66
+    }
+  },
+  {
+    "title": "Mentorías IN Norte",
+    "deltas": {
+      "trust": 1.78,
+      "cohesion": 0.0,
+      "equity": 0.0
+    },
+    "pct": {
+      "trust": 2.907546553413919,
+      "cohesion": 0.0,
+      "equity": 0.0
+    },
+    "base": {
+      "trust": 61.22,
+      "cohesion": 36.0,
+      "equity": 56.66
+    },
+    "new": {
+      "trust": 63.0,
+      "cohesion": 36.0,
+      "equity": 56.66
+    }
+  },
+  {
+    "title": "Puentes extra",
+    "deltas": {
+      "cohesion": 5.67,
+      "trust": 0.0,
+      "equity": 0.0
+    },
+    "pct": {
+      "cohesion": 15.750000000000005,
+      "trust": 0.0,
+      "equity": 0.0
+    },
+    "base": {
+      "trust": 61.22,
+      "cohesion": 36.0,
+      "equity": 56.66
+    },
+    "new": {
+      "trust": 61.22,
+      "cohesion": 41.67,
+      "equity": 56.66
+    }
+  },
+  {
+    "title": "Puentes + Redistribución",
+    "deltas": {
+      "cohesion": -0.71,
+      "equity": 6.3,
+      "trust": 0.0
+    },
+    "pct": {
+      "cohesion": -1.9722222222222245,
+      "equity": 11.11895517119662,
+      "trust": 0.0
+    },
+    "base": {
+      "trust": 61.22,
+      "cohesion": 36.0,
+      "equity": 56.66
+    },
+    "new": {
+      "trust": 61.22,
+      "cohesion": 35.29,
+      "equity": 62.96
+    }
+  }
+]

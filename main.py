@@ -3,49 +3,57 @@
 #           python main.py demo_en.lexo --lang=en
 # Flags globales de control
 
-# =========================
-# IMPORTS
-# =========================
-from linter import EthicsLinter 
-from core_helpers import append_changelog_lint
-from core_helpers import build_lint_context
+import json
+import math
+import os
+import re
 
 # Standard library
 import sys
-import os
-import re
-import json
-import math
-import networkx as nx
+
 import matplotlib
+import networkx as nx
+
+from core_helpers import append_changelog_lint, build_lint_context
+
+# =========================
+# IMPORTS
+# =========================
+from linter import EthicsLinter
+
 matplotlib.use("Agg")  # evita crash por display en Replit
-import matplotlib.pyplot as plt
-import warnings
 import argparse
 import hashlib
+import warnings
+
+import matplotlib.pyplot as plt
 
 from core_helpers import (
-    begin_run, end_run,
-    load_ethics_thresholds, blocker_decision,
-    write_blockade_summary, append_changelog,
+    append_changelog,
+    begin_run,
+    blocker_decision,
+    end_run,
+    load_ethics_thresholds,
+    write_blockade_summary,
 )
-
 
 warnings.filterwarnings(
     "ignore",
     message="This figure includes Axes that are not compatible with tight_layout",
-    category=UserWarning
+    category=UserWarning,
 )
 
 
 # =========================
 # Globals y helpers ETHICS (mínimo)
 # =========================
-ETHICS = {}                 # se completa desde ethics.yaml
-ETHICS_LOADED = False       # para no cargar dos veces
-ETHICS_ALREADY_EMITTED = False # para no imprimir alertas duplicadas
+ETHICS = {}  # se completa desde ethics.yaml
+ETHICS_LOADED = False  # para no cargar dos veces
+ETHICS_ALREADY_EMITTED = False  # para no imprimir alertas duplicadas
+
+
 # =========================
-# FUNCIONES DE SOPORTE 
+# FUNCIONES DE SOPORTE
 # =========================
 def apply_ethics_yaml_once(path="ethics.yaml"):
     global ETHICS_LOADED, ETHICS
@@ -53,15 +61,17 @@ def apply_ethics_yaml_once(path="ethics.yaml"):
         return
     try:
         import yaml
+
         with open(path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
         if isinstance(data, dict) and data:
             ETHICS.update(data)
-            
+
     except Exception:
         pass
     ETHICS_LOADED = True
-    
+
+
 def print_alerts(alerts):
     """
     Imprime alertas éticas una sola vez y sin duplicados de contenido.
@@ -81,6 +91,7 @@ def print_alerts(alerts):
         print(a)
     ETHICS_ALREADY_EMITTED = True
 
+
 # =========================
 # i18n: ES <-> EN mapeos
 # =========================
@@ -96,14 +107,12 @@ TOKEN_MAP = {
         r"\bfortalecer_vinculos\b": "STRENGTHEN_TIES",
         r"\bmedir_impacto\b": "MEASURE_IMPACT",
         r"\bmostrar_red\b": "SHOW_NETWORK",
-
         # entidades/tipos
         r"\bpersona\b": "PERSON",
         r"\bcomunidad\b": "COMMUNITY",
         r"\borganización\b": "ORGANIZATION",
         r"\borganizacion\b": "ORGANIZATION",
         r"\brecurso\b": "RESOURCE",
-
         # atributos frecuentes
         r"\bconfianza\b": "trust",
         r"\bcohesión\b": "cohesion",
@@ -118,14 +127,12 @@ TOKEN_MAP = {
         r"\bplan_mitigación\b": "mitigation_plan",
         r"\bplan_mitigacion\b": "mitigation_plan",
         r"\brecursos\b": "resources",
-
         # constantes ejemplo
         r"\bALTO\b": "HIGH",
         r"\bMEDIA\b": "MEDIUM",
         r"\bALTA\b": "HIGH",
         r"\bBAJA\b": "LOW",
         r"\bBAJO\b": "LOW",
-
         # sintaxis de medición
         r"\ben dimensión\(": "on dimension(",
         r"\bendimensión\(": "on dimension(",  # por si queda pegado
@@ -142,12 +149,10 @@ TOKEN_MAP = {
         r"\bstrengthen_ties\b": "STRENGTHEN_TIES",
         r"\bmeasure_impact\b": "MEASURE_IMPACT",
         r"\bshow_network\b": "SHOW_NETWORK",
-
         r"\bperson\b": "PERSON",
         r"\bcommunity\b": "COMMUNITY",
         r"\borganization\b": "ORGANIZATION",
         r"\bresource\b": "RESOURCE",
-
         r"\btrust\b": "trust",
         r"\bcohesion\b": "cohesion",
         r"\bequity\b": "equity",
@@ -158,13 +163,11 @@ TOKEN_MAP = {
         r"\bcare_network\b": "CARE_NETWORK",
         r"\bmitigation_plan\b": "mitigation_plan",
         r"\bresources\b": "resources",
-
         r"\bHIGH\b": "HIGH",
         r"\bMEDIUM\b": "MEDIUM",
         r"\bLOW\b": "LOW",
-
         r"\bon dimension\(": "on dimension(",
-    }
+    },
 }
 
 # =========================
@@ -173,8 +176,10 @@ TOKEN_MAP = {
 # Debe existir TOKEN_MAP con claves "es"/"en" y patrones -> tokens
 COMMENT = r"//.*?$"
 
+
 def strip_line_comments(s: str) -> str:
     return re.sub(COMMENT, "", s, flags=re.M)
+
 
 def normalize_source(text: str, lang: str) -> str:
     s = strip_line_comments(text)
@@ -198,12 +203,17 @@ def lint_compare(prev_metrics, new_metrics):
         if t0 > 0:
             drop_pct = max(0.0, (t0 - t1) * 100.0 / t0)
             if drop_pct > ETHICS["max_trust_drop_pct"]:
-                alerts.append(f"[ETHICS] La confianza cayó {drop_pct:.1f}% (> {ETHICS['max_trust_drop_pct']}%). Revisar la intervención.")
+                alerts.append(
+                    f"[ETHICS] La confianza cayó {drop_pct:.1f}% (> {ETHICS['max_trust_drop_pct']}%). Revisar la intervención."
+                )
 
         # 2) equidad mínima
         if new_metrics["equity"] < ETHICS["min_equity_score"]:
-            alerts.append(f"[ETHICS] La equidad bajó a {new_metrics['equity']:.1f} (< {ETHICS['min_equity_score']}). Riesgo de concentración de recursos.")
+            alerts.append(
+                f"[ETHICS] La equidad bajó a {new_metrics['equity']:.1f} (< {ETHICS['min_equity_score']}). Riesgo de concentración de recursos."
+            )
     return alerts
+
 
 def lint_compare_v2(prev_snap, new_snap, prev_m, new_m):
     alerts = []
@@ -237,7 +247,9 @@ def lint_compare_v2(prev_snap, new_snap, prev_m, new_m):
         )
 
     # 4) Nodos con confianza muy baja
-    low_nodes = [n for n, t in new_snap["node_trust"].items() if t < ETHICS["low_node_trust"]]
+    low_nodes = [
+        n for n, t in new_snap["node_trust"].items() if t < ETHICS["low_node_trust"]
+    ]
     if low_nodes:
         sample = ", ".join(list(low_nodes)[:3])
         alerts.append(
@@ -246,7 +258,11 @@ def lint_compare_v2(prev_snap, new_snap, prev_m, new_m):
         )
 
     # 5) Vínculos con confianza muy baja
-    low_edges = [(u, v) for (u, v), t in new_snap["edges"].items() if t < ETHICS["low_edge_trust"]]
+    low_edges = [
+        (u, v)
+        for (u, v), t in new_snap["edges"].items()
+        if t < ETHICS["low_edge_trust"]
+    ]
     if low_edges:
         u, v = low_edges[0]
         alerts.append(
@@ -255,7 +271,9 @@ def lint_compare_v2(prev_snap, new_snap, prev_m, new_m):
         )
 
     # 6) Nodos aislados / grado insuficiente
-    isolated = [n for n, d in new_snap["degrees"].items() if d < ETHICS["min_node_degree"]]
+    isolated = [
+        n for n, d in new_snap["degrees"].items() if d < ETHICS["min_node_degree"]
+    ]
     if isolated:
         sample = ", ".join(list(isolated)[:3])
         alerts.append(
@@ -264,7 +282,11 @@ def lint_compare_v2(prev_snap, new_snap, prev_m, new_m):
         )
 
     # 7) Recursos por debajo del mínimo
-    starved = [n for n, r in new_snap["res_by_node"].items() if r < ETHICS["min_resources_per_node"]]
+    starved = [
+        n
+        for n, r in new_snap["res_by_node"].items()
+        if r < ETHICS["min_resources_per_node"]
+    ]
     if starved:
         sample = ", ".join(list(starved)[:3])
         alerts.append(
@@ -283,7 +305,11 @@ def lint_compare_v2(prev_snap, new_snap, prev_m, new_m):
     alerts += lint_compare(prev_m, new_m)
     return alerts
 
-import json, csv, os
+
+import csv
+import json
+import os
+
 
 def save_report_json(metrics, alerts, path="report.json"):
     data = {"metrics": metrics, "alerts": alerts}
@@ -291,9 +317,11 @@ def save_report_json(metrics, alerts, path="report.json"):
         json.dump(data, f, ensure_ascii=False, indent=2)
     print(f"[OK] Reporte JSON guardado en {path}")
 
+
 def save_report_csv(metrics, alerts=None, path="report.csv"):
     with open(path, "w", newline="", encoding="utf-8") as f:
         import csv
+
         writer = csv.writer(f)
         writer.writerow(["trust", "cohesion", "equity"])
         writer.writerow([metrics["trust"], metrics["cohesion"], metrics["equity"]])
@@ -304,6 +332,7 @@ def save_report_csv(metrics, alerts=None, path="report.csv"):
                 writer.writerow([a])
     print(f"[OK] Reporte CSV actualizado en {path}")
 
+
 def evaluate_ethics(rt, start_snap, final_snap, start_metrics, final_metrics):
     """
     Wrapper del linter ético v2: compara estado inicial vs final y devuelve lista de alertas.
@@ -311,14 +340,23 @@ def evaluate_ethics(rt, start_snap, final_snap, start_metrics, final_metrics):
     # Asume que tenés lint_compare_v2(prev_snap, new_snap, prev_m, new_m) ya definido.
     return lint_compare_v2(start_snap, final_snap, start_metrics, final_metrics)
 
+
 # =========================
 # Parser súper simple para el MVP
 # - reconoce bloques por llaves
 # - reconoce las sentencias clave por prefix
 # =========================
 _bool_like = {"true": True, "false": False, "TRUE": True, "FALSE": False}
-_ident_like = {"ALTO": "HIGH", "MEDIA": "MEDIUM", "BAJA": "LOW", "ALTA": "HIGH",
-               "HIGH":"HIGH","MEDIUM":"MEDIUM","LOW":"LOW"}
+_ident_like = {
+    "ALTO": "HIGH",
+    "MEDIA": "MEDIUM",
+    "BAJA": "LOW",
+    "ALTA": "HIGH",
+    "HIGH": "HIGH",
+    "MEDIUM": "MEDIUM",
+    "LOW": "LOW",
+}
+
 
 def _parse_number(tok: str):
     try:
@@ -327,6 +365,7 @@ def _parse_number(tok: str):
         return int(tok)
     except:
         return None
+
 
 def _parse_list(text: str):
     # lista simple: ["a","b"] o [1,2,3] o [ a , b ]
@@ -337,7 +376,9 @@ def _parse_list(text: str):
     # separar por comas, tolerando espacios
     parts = [p.strip() for p in inner.split(",")]
     for p in parts:
-        if len(p) >= 2 and ((p[0] == '"' and p[-1] == '"') or (p[0] == "'" and p[-1] == "'")):
+        if len(p) >= 2 and (
+            (p[0] == '"' and p[-1] == '"') or (p[0] == "'" and p[-1] == "'")
+        ):
             items.append(p[1:-1])
         else:
             num = _parse_number(p)
@@ -349,10 +390,13 @@ def _parse_list(text: str):
                 items.append(p)  # identificador libre
     return items
 
+
 def _parse_value(raw: str):
     s = raw.strip()
     # cadena
-    if len(s) >= 2 and ((s[0] == '"' and s[-1] == '"') or (s[0] == "'" and s[-1] == "'")):
+    if len(s) >= 2 and (
+        (s[0] == '"' and s[-1] == '"') or (s[0] == "'" and s[-1] == "'")
+    ):
         return s[1:-1]
     # lista
     if s.startswith("[") and s.endswith("]"):
@@ -368,6 +412,7 @@ def _parse_value(raw: str):
     if s in _ident_like:
         return _ident_like[s]
     return s  # fallback
+
 
 def parse_properties(block_text: str):
     """
@@ -399,6 +444,7 @@ def parse_properties(block_text: str):
         props[key] = val
     return props
 
+
 def skip_ws_and_comments(src, i):
     n = len(src)
     while i < n:
@@ -408,7 +454,7 @@ def skip_ws_and_comments(src, i):
             i += 1
             continue
         # comentarios tipo //
-        if i+1 < n and src[i] == "/" and src[i+1] == "/":
+        if i + 1 < n and src[i] == "/" and src[i + 1] == "/":
             i += 2
             while i < n and src[i] != "\n":
                 i += 1
@@ -420,6 +466,7 @@ def skip_ws_and_comments(src, i):
             continue
         break
     return i
+
 
 def load_ethics_from_yaml(path="ethics.yaml"):
     try:
@@ -436,6 +483,7 @@ def load_ethics_from_yaml(path="ethics.yaml"):
         print(f"[WARN] No se pudo leer {path}: {e}")
         return None
 
+
 class Node:
     def __init__(self, kind, name, props=None):
         self.kind = kind  # PERSON / COMMUNITY / ORGANIZATION / RESOURCE
@@ -445,41 +493,47 @@ class Node:
     def __repr__(self):
         return f"<{self.kind}:{self.name} {self.props}>"
 
+
 class AST:
     def __init__(self):
         self.decls = []
         self.actions = []
 
+
 # parsing helpers
 ETHICS = {
-    "max_trust_drop_pct": 10.0,   # alerta si cae >10% la confianza promedio
-    "min_equity_score": 60.0,     # alerta si la equidad baja de 60/100
+    "max_trust_drop_pct": 10.0,  # alerta si cae >10% la confianza promedio
+    "min_equity_score": 60.0,  # alerta si la equidad baja de 60/100
 }
-ETHICS.update({
-    "max_edge_trust_drop": 20.0,     # alerta si algún vínculo cae >20 pts
-    "max_gini_increase_pct": 10.0,   # alerta si la inequidad (gini) sube >10%
-    "min_avg_trust": 60.0,          # alerta si la confianza promedio cae por debajo
-    "low_node_trust": 55.0,         # si algún nodo queda con confianza muy baja
-    "low_edge_trust": 50.0,         # si algún vínculo queda con confianza muy baja
-    "min_node_degree": 1,           # nodos aislados o con grado 0/1 llaman la atención
-    "min_resources_per_node": 2.0,  # umbral mínimo de recursos por nodo
-    "max_resource_share": 0.50,     # si un solo nodo concentra >40% de los recursos
-})
+ETHICS.update(
+    {
+        "max_edge_trust_drop": 20.0,  # alerta si algún vínculo cae >20 pts
+        "max_gini_increase_pct": 10.0,  # alerta si la inequidad (gini) sube >10%
+        "min_avg_trust": 60.0,  # alerta si la confianza promedio cae por debajo
+        "low_node_trust": 55.0,  # si algún nodo queda con confianza muy baja
+        "low_edge_trust": 50.0,  # si algún vínculo queda con confianza muy baja
+        "min_node_degree": 1,  # nodos aislados o con grado 0/1 llaman la atención
+        "min_resources_per_node": 2.0,  # umbral mínimo de recursos por nodo
+        "max_resource_share": 0.50,  # si un solo nodo concentra >40% de los recursos
+    }
+)
 
 WS = r"[ \t]*"
 IDENT = r"[A-Za-zÁÉÍÓÚáéíóúÑñ_][A-Za-z0-9ÁÉÍÓÚáéíóúÑñ_\- ]*"
+
 
 def startswith_token(src: str, i: int, token: str) -> bool:
     if not src.startswith(token, i):
         return False
     # límite por la izquierda
-    if i > 0 and (src[i-1].isalnum() or src[i-1] == "_"):
+    if i > 0 and (src[i - 1].isalnum() or src[i - 1] == "_"):
         return False
     # límite por la derecha
     j = i + len(token)
     if j < len(src) and (src[j].isalnum() or src[j] == "_"):
         return False
     return True
+
 
 def extract_block(src: str, start_idx: int):
     """
@@ -504,6 +558,8 @@ def extract_block(src: str, start_idx: int):
                 depth -= 1
         i += 1
     raise ValueError("extract_block: bloque '{...}' sin cierre")
+
+
 def extract_parens(src: str, start_idx: int):
     """
     Extrae el texto de un paréntesis balanceado (...) desde src[start_idx] == '('
@@ -525,7 +581,11 @@ def extract_parens(src: str, start_idx: int):
                 depth -= 1
         i += 1
     raise ValueError("extract_parens: paréntesis '(...)' sin cierre")
-import unicodedata, re
+
+
+import re
+import unicodedata
+
 
 def parse_two_quoted_args(arg_text: str):
     """Recibe el contenido dentro de CONNECT(...) y devuelve dos strings (a, b)."""
@@ -538,6 +598,7 @@ def parse_two_quoted_args(arg_text: str):
     if not m:
         raise ValueError(f"CONNECT: argumentos inválidos → {s!r}")
     return m.group(1), m.group(2)
+
 
 def parse_program(src: str):
     src = strip_line_comments(src)
@@ -569,7 +630,11 @@ def parse_program(src: str):
             name_text, after_paren = extract_parens(src, i)
             # name_text debería ser "Nombre"
             name_text = name_text.strip()
-            if len(name_text) < 2 or name_text[0] not in "\"'" or name_text[-1] not in "\"'":
+            if (
+                len(name_text) < 2
+                or name_text[0] not in "\"'"
+                or name_text[-1] not in "\"'"
+            ):
                 raise ValueError("CREATE_NODE name must be quoted")
             node_name = name_text[1:-1]
             i = after_paren
@@ -578,7 +643,9 @@ def parse_program(src: str):
             # bloque de props
             brace_pos = src.find("{", i)
             if brace_pos == -1:
-                raise ValueError("Expected properties block { ... } after CREATE_NODE name")
+                raise ValueError(
+                    "Expected properties block { ... } after CREATE_NODE name"
+                )
             props_text, end_block = extract_block(src, brace_pos)
             props = parse_properties(props_text)
             i = end_block
@@ -591,8 +658,10 @@ def parse_program(src: str):
             i += len("CONNECT")
             i = skip_ws_and_comments(src, i)
             if i >= n or src[i] != "(":
-                ctx = src[max(0, i-40):min(n, i+80)]
-                raise ValueError(f"Expected '(' after CONNECT at pos {i}. Context: {ctx!r}")
+                ctx = src[max(0, i - 40) : min(n, i + 80)]
+                raise ValueError(
+                    f"Expected '(' after CONNECT at pos {i}. Context: {ctx!r}"
+                )
 
             arg_text, after_paren = extract_parens(src, i)
             a, b = parse_two_quoted_args(arg_text)
@@ -613,7 +682,9 @@ def parse_program(src: str):
         # ----------------- STRENGTHEN_TIES -----------------
         # STRENGTHEN_TIES("Ayla") { ... }
         if startswith_token(src, i, "STRENGTHEN_TIES"):
-            m = re.match(rf"STRENGTHEN_TIES{WS}\({WS}\"([^\"]+)\"{WS}\){WS}", src[i:], flags=re.S)
+            m = re.match(
+                rf"STRENGTHEN_TIES{WS}\({WS}\"([^\"]+)\"{WS}\){WS}", src[i:], flags=re.S
+            )
             if not m:
                 raise ValueError("STRENGTHEN_TIES target must be quoted")
             target = m.group(1)
@@ -644,7 +715,7 @@ def parse_program(src: str):
                 j += 1
             if j >= n:
                 raise ValueError("Unclosed initiative name")
-            iname = src[i+1:j]
+            iname = src[i + 1 : j]
             i = j + 1
 
             i = skip_ws_and_comments(src, i)
@@ -753,7 +824,11 @@ def parse_program(src: str):
                 raise ValueError("Expected '(' after MEASURE_IMPACT target type")
             name_text, after_paren = extract_parens(src, i)
             name_text = name_text.strip()
-            if len(name_text) < 2 or name_text[0] not in "\"'" or name_text[-1] not in "\"'":
+            if (
+                len(name_text) < 2
+                or name_text[0] not in "\"'"
+                or name_text[-1] not in "\"'"
+            ):
                 raise ValueError("MEASURE_IMPACT target name must be quoted")
             target_name = name_text[1:-1]
             i = after_paren
@@ -773,7 +848,14 @@ def parse_program(src: str):
             dim_pos = src.find("DIMENSION", i)
             if dim_pos == -1:
                 # fallback: comparar en mayúsculas y quitar posibles tildes
-                U = src.upper().replace("Ó", "O").replace("Í","I").replace("É","E").replace("Á","A").replace("Ú","U")
+                U = (
+                    src.upper()
+                    .replace("Ó", "O")
+                    .replace("Í", "I")
+                    .replace("É", "E")
+                    .replace("Á", "A")
+                    .replace("Ú", "U")
+                )
                 dim_pos = U.find("DIMENSION", i)
                 if dim_pos == -1:
                     raise ValueError("Expected DIMENSION(...) in MEASURE_IMPACT")
@@ -802,19 +884,20 @@ def parse_program(src: str):
 
         # Si no matcheó nada, avanzar 1 char para no quedar en loop infinito
         i += 1
-    
+
     return ast
 
 
 # =========================
 # RUNTIME / EJECUCIÓN
 # =========================
-    # Mapa simple de intensidades → incrementos
+# Mapa simple de intensidades → incrementos
 _INT_MAP = {
-        "ALTA":  (10,  6),  # (bump_trust_node, bump_conf_edge)
-        "MEDIA": ( 6,  4),
-        "BAJA":  ( 3,  2),
-    }
+    "ALTA": (10, 6),  # (bump_trust_node, bump_conf_edge)
+    "MEDIA": (6, 4),
+    "BAJA": (3, 2),
+}
+
 
 class Runtime:
     def __init__(self):
@@ -853,13 +936,16 @@ class Runtime:
         self.graph.nodes[n]["recursos"] = val
 
     def _norm_intensity(self, x):
-        if not x: return "MEDIA"
+        if not x:
+            return "MEDIA"
         x = str(x).upper().strip()
         # aceptar ambas familias
-        if x in ("ALTA", "HIGH"): return "ALTA"
-        if x in ("BAJA", "LOW"):  return "BAJA"
+        if x in ("ALTA", "HIGH"):
+            return "ALTA"
+        if x in ("BAJA", "LOW"):
+            return "BAJA"
         return "MEDIA"  # MEDIA/MEDIUM por default
-   
+
     # ---------- utilidades seguras ----------
     def ensure_node(self, kind: str, name: str, props: dict):
         if not self.graph.has_node(name):
@@ -869,8 +955,12 @@ class Runtime:
         for k, v in props.items():
             ndata[k] = v
         # defaults razonables
-        ndata.setdefault("trust", float(props.get("trust", props.get("confianza", 50.0))))
-        ndata.setdefault("resources", float(props.get("resources", props.get("recursos", 0.0))))
+        ndata.setdefault(
+            "trust", float(props.get("trust", props.get("confianza", 50.0)))
+        )
+        ndata.setdefault(
+            "resources", float(props.get("resources", props.get("recursos", 0.0)))
+        )
 
     def _edge_trust(self, u, v, default=50.0):
         if self.graph.has_edge(u, v):
@@ -886,44 +976,52 @@ class Runtime:
         if self.graph.has_node(node):
             t = float(self.graph.nodes[node].get("trust", 50.0)) + float(delta)
             self.graph.nodes[node]["trust"] = max(0.0, min(100.0, t))
-   
+
     # --- Helpers internos ---
-    
+
     def _clamp(self, v, lo=0, hi=100):
         return max(lo, min(hi, v))
 
     def _int_bumps(self, norm):
-        return {"ALTA": (10,6), "MEDIA": (6,4), "BAJA": (3,2)}.get(norm, (6,4))
+        return {"ALTA": (10, 6), "MEDIA": (6, 4), "BAJA": (3, 2)}.get(norm, (6, 4))
+
     # --- Acciones con efecto real ---
 
     def strengthen_ties(self, target, props):
-            print(f"[DEBUG] strengthen_ties → target={target}, props={props}")
-            if not self.graph.has_node(target): return
-            norm = self._norm_intensity(props.get("intensidad") or props.get("intensity"))
-            bump_node, bump_edge = self._int_bumps(norm)
+        print(f"[DEBUG] strengthen_ties → target={target}, props={props}")
+        if not self.graph.has_node(target):
+            return
+        norm = self._norm_intensity(props.get("intensidad") or props.get("intensity"))
+        bump_node, bump_edge = self._int_bumps(norm)
 
         # subir confianza del nodo
-            node_conf = self.graph.nodes[target].get("confianza", self.graph.nodes[target].get("trust", 50))
-            node_conf = max(0, min(100, node_conf + bump_node))
-            self.graph.nodes[target]["confianza"] = node_conf
-            self.graph.nodes[target]["trust"] = node_conf
+        node_conf = self.graph.nodes[target].get(
+            "confianza", self.graph.nodes[target].get("trust", 50)
+        )
+        node_conf = max(0, min(100, node_conf + bump_node))
+        self.graph.nodes[target]["confianza"] = node_conf
+        self.graph.nodes[target]["trust"] = node_conf
 
         # subir confianza de aristas incidentes
-            for u, v, d in self.graph.edges(target, data=True):
-                conf = float(d.get("confianza", d.get("trust", 50)))
-                conf = max(0, min(100, conf + bump_edge))
-                d["confianza"] = conf
-                d["trust"] = conf
-
+        for u, v, d in self.graph.edges(target, data=True):
+            conf = float(d.get("confianza", d.get("trust", 50)))
+            conf = max(0, min(100, conf + bump_edge))
+            d["confianza"] = conf
+            d["trust"] = conf
 
     def care_network(self, target, intensity="MEDIA", mitigation_plan=None):
-        print(f"[DEBUG] care_network → target={target}, intensity={intensity}, plan={mitigation_plan}")
-        if not self.graph.has_node(target): return
+        print(
+            f"[DEBUG] care_network → target={target}, intensity={intensity}, plan={mitigation_plan}"
+        )
+        if not self.graph.has_node(target):
+            return
         norm = self._norm_intensity(intensity)
         bump_node, bump_edge = self._int_bumps(norm)
 
         # subir confianza del nodo
-        node_conf = self.graph.nodes[target].get("confianza", self.graph.nodes[target].get("trust", 50))
+        node_conf = self.graph.nodes[target].get(
+            "confianza", self.graph.nodes[target].get("trust", 50)
+        )
         node_conf = max(0, min(100, node_conf + bump_node))
         self.graph.nodes[target]["confianza"] = node_conf
         self.graph.nodes[target]["trust"] = node_conf
@@ -941,27 +1039,32 @@ class Runtime:
             plans.append(str(mitigation_plan))
             self.graph.nodes[target]["mitigation_plans"] = plans
 
-
     def redistribute_resources(self, giver, receiver, fraction=0.2, min_left=2.0):
         if not (self.graph.has_node(giver) and self.graph.has_node(receiver)):
             return
         g = self._get_node_resources(giver)
         r = self._get_node_resources(receiver)
-        fraction = float(fraction); min_left = float(min_left)
+        fraction = float(fraction)
+        min_left = float(min_left)
 
         if g <= min_left:
-            print(f"[DEBUG] redistribute_resources → SIN MOVIMIENTO (g={g}, min_left={min_left})")
+            print(
+                f"[DEBUG] redistribute_resources → SIN MOVIMIENTO (g={g}, min_left={min_left})"
+            )
             return
 
         move = max(0.0, min(g - min_left, g * fraction))
         if move <= 0:
-            print(f"[DEBUG] redistribute_resources → SIN MOVIMIENTO (g={g}, fraction={fraction})")
+            print(
+                f"[DEBUG] redistribute_resources → SIN MOVIMIENTO (g={g}, fraction={fraction})"
+            )
             return
 
         self._set_node_resources(giver, g - move)
         self._set_node_resources(receiver, r + move)
-        print(f"[DEBUG] redistribute_resources → moved={move:.2f}, {giver}:{g - move:.2f} → {receiver}:{r + move:.2f}")
-
+        print(
+            f"[DEBUG] redistribute_resources → moved={move:.2f}, {giver}:{g - move:.2f} → {receiver}:{r + move:.2f}"
+        )
 
     def launch_initiative(self, target: str, inc: int = 15):
         """
@@ -974,6 +1077,7 @@ class Runtime:
         cur = node.get("confianza", node.get("trust", 50))
         node["confianza"] = self._clamp(cur + int(inc))
         node["trust"] = node["confianza"]
+
     # ---------- acciones del DSL ----------
     def connect(self, a, b, props=None):
         props = props or {}
@@ -994,11 +1098,12 @@ class Runtime:
         d["intensidad"] = inten
         d["intensity"] = inten
 
-            # ---------- métricas y visual (dejas tus versiones si ya existen) ----------
+        # ---------- métricas y visual (dejas tus versiones si ya existen) ----------
+
     def measure(self):
         # Trust: promedio de confianza nodal
         trusts = [self._get_node_trust(n) for n in self.graph.nodes()]
-        trust = sum(trusts)/len(trusts) if trusts else 0.0
+        trust = sum(trusts) / len(trusts) if trusts else 0.0
 
         # Cohesion: clustering/transitividad (0..1) → 0..100
         try:
@@ -1010,7 +1115,7 @@ class Runtime:
         # Equity: 100*(1 - Gini) sobre resources de PERSON + COMMUNITY
         resc = []
         for n, d in self.graph.nodes(data=True):
-            if d.get("kind") == "PERSON":       # ← filtra solo personas
+            if d.get("kind") == "PERSON":  # ← filtra solo personas
                 resc.append(self._get_node_resources(n))
 
         equity = 0.0
@@ -1023,20 +1128,37 @@ class Runtime:
                 cum = 0.0
                 for i, x in enumerate(xs, start=1):
                     cum += i * x
-                gini = (2*cum)/(n*s) - (n+1)/n
+                gini = (2 * cum) / (n * s) - (n + 1) / n
                 gini = max(0.0, min(1.0, gini))
                 equity = 100.0 * (1.0 - gini)
-        print("[DEBUG] measure.trusts =", [round(self._get_node_trust(n),1) for n in self.graph.nodes()])
-        print("[DEBUG] measure.resources =", [round(self._get_node_resources(n),2) for n in self.graph.nodes()])
+        print(
+            "[DEBUG] measure.trusts =",
+            [round(self._get_node_trust(n), 1) for n in self.graph.nodes()],
+        )
+        print(
+            "[DEBUG] measure.resources =",
+            [round(self._get_node_resources(n), 2) for n in self.graph.nodes()],
+        )
 
-        return {"trust": round(trust, 2), "cohesion": round(cohesion, 2), "equity": round(equity, 2)}
-
+        return {
+            "trust": round(trust, 2),
+            "cohesion": round(cohesion, 2),
+            "equity": round(equity, 2),
+        }
 
     def show_network(self, path="network.png", title=None):
         import matplotlib.pyplot as plt
-        plt.figure(figsize=(6,6))
+
+        plt.figure(figsize=(6, 6))
         pos = nx.spring_layout(self.graph, seed=42)
-        nx.draw(self.graph, pos, with_labels=True, node_size=800, node_color="lightblue", font_size=8)
+        nx.draw(
+            self.graph,
+            pos,
+            with_labels=True,
+            node_size=800,
+            node_color="lightblue",
+            font_size=8,
+        )
 
         if title:
             plt.title(title)
@@ -1050,15 +1172,13 @@ class Runtime:
         print(f"[OK] Gráfico guardado en {path}")
         plt.close()
 
-
-
         # Si estás en Replit, mostrará la imagen en la pestaña de archivos.
 
-# -------------------------
+    # -------------------------
     def gini(values):
         vals = [float(x) for x in values if float(x) >= 0]
         if not vals:
-         return 0.0
+            return 0.0
         vals = sorted(vals)
         n = len(vals)
         cum = 0.0
@@ -1070,9 +1190,11 @@ class Runtime:
         return (2 * cum) / (n * s) - (n + 1) / n
 
 
+from core_helpers import build_lint_context
+
 # ———— PRE-LINTER v0.4 (hook) ————
 from linter import EthicsLinter
-from core_helpers import build_lint_context
+
 
 def _ast_to_ir_for_linter(ast) -> dict:
     """
@@ -1083,11 +1205,7 @@ def _ast_to_ir_for_linter(ast) -> dict:
     try:
         for kind, type_name, name, props in getattr(ast, "decls", []):
             if kind == "CREATE_NODE":
-                ir["nodes"].append({
-                    "name": name,
-                    "type": type_name,
-                    **(props or {})
-                })
+                ir["nodes"].append({"name": name, "type": type_name, **(props or {})})
             elif kind in ("CREATE_EDGE", "CONNECT", "LINK"):
                 # Ajustá si tu AST usa otra tupla/estructura para relaciones
                 src = props.get("source") if props else None
@@ -1100,6 +1218,7 @@ def _ast_to_ir_for_linter(ast) -> dict:
         pass
     return ir
 
+
 def _print_lint_report(report):
     if not report.violations:
         print(f"[LINTER][{report.phase}] ✅ Sin violaciones.")
@@ -1110,8 +1229,11 @@ def _print_lint_report(report):
         if v.remediation:
             print(f"      → Sugerencia: {v.remediation}")
 
+
 def _persist_blockade_summary(report):
-    import json, time
+    import json
+    import time
+
     payload = {
         "phase": report.phase,
         "blocked": True,
@@ -1121,7 +1243,8 @@ def _persist_blockade_summary(report):
                 "severity": v.severity,
                 "message": v.message,
                 "remediation": v.remediation,
-            } for v in report.violations
+            }
+            for v in report.violations
         ],
         "ts": int(time.time()),
         "version": "v0.4",
@@ -1129,6 +1252,8 @@ def _persist_blockade_summary(report):
     with open("blockade_summary.json", "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
     print("[LINTER] 🛑 Bloqueo ético — se guardó blockade_summary.json")
+
+
 # ———— FIN PRE-LINTER v0.4 ————
 
 
@@ -1137,6 +1262,7 @@ def _persist_blockade_summary(report):
 # =========================
 final_metrics = None
 
+
 def execute(rt: Runtime, ast: AST, finalize: bool = True):
     # 1) Declaraciones
     for kind, type_name, name, props in ast.decls:
@@ -1144,9 +1270,9 @@ def execute(rt: Runtime, ast: AST, finalize: bool = True):
             rt.ensure_node(type_name.upper(), name, props)
 
     # 2) Snapshot/métricas INICIALES (para este nivel)
-    start_m    = rt.measure()
+    start_m = rt.measure()
     start_snap = snapshot_state(rt)
-    
+
     # 3) Acciones
     for act in ast.actions:
         tag = act[0]
@@ -1163,7 +1289,9 @@ def execute(rt: Runtime, ast: AST, finalize: bool = True):
 
         if tag == "LAUNCH_INITIATIVE":
             _, iname, props = act
-            target = props.get("target") or props.get("community") or props.get("COMMUNITY")
+            target = (
+                props.get("target") or props.get("community") or props.get("COMMUNITY")
+            )
             inc = int(props.get("trust_boost", 15))
             if target:
                 rt.launch_initiative(target, inc=inc)
@@ -1177,9 +1305,10 @@ def execute(rt: Runtime, ast: AST, finalize: bool = True):
             _, giver, receiver, props = act
             p = dict(props)
             rt.redistribute_resources(
-                giver, receiver,
+                giver,
+                receiver,
                 fraction=float(props.get("fraction", props.get("fraccion", 0.2))),
-                min_left=float(props.get("min_left", props.get("minimo", 2.0)))
+                min_left=float(props.get("min_left", props.get("minimo", 2.0))),
             )
             continue
 
@@ -1187,8 +1316,11 @@ def execute(rt: Runtime, ast: AST, finalize: bool = True):
             _, target, props = act
             rt.care_network(
                 target,
-                intensity=(props.get("intensity") or props.get("intensidad") or "MEDIA"),
-                mitigation_plan=props.get("mitigation_plan") or props.get("plan_mitigacion")
+                intensity=(
+                    props.get("intensity") or props.get("intensidad") or "MEDIA"
+                ),
+                mitigation_plan=props.get("mitigation_plan")
+                or props.get("plan_mitigacion"),
             )
             continue
 
@@ -1207,9 +1339,8 @@ def execute(rt: Runtime, ast: AST, finalize: bool = True):
             metrics = rt.measure()
             sel = {k: metrics[k] for k in dims if k in metrics}
             print(">> Impacto:", json.dumps(sel, ensure_ascii=False))
-            rt.final_metrics = metrics            # ⬅️ GUARDAR AQUÍ
+            rt.final_metrics = metrics  # ⬅️ GUARDAR AQUÍ
             continue
-
 
         if tag == "SHOW_NETWORK":
             rt.show_network(title="LEXO v0.1 – Red")
@@ -1217,20 +1348,25 @@ def execute(rt: Runtime, ast: AST, finalize: bool = True):
 
     # 4) Linter final-only + reportes (SOLO si finalize=True)
     if finalize:
-        final_m    = rt.measure()
+        final_m = rt.measure()
         final_snap = snapshot_state(rt)
         alerts = evaluate_ethics(rt, start_snap, final_snap, start_m, final_m)
         print_alerts(alerts)
         save_report_json(final_m, alerts, path="report.json")
         save_report_csv(final_m, alerts, path="report.csv")
 
+
 # main.py
 from core_helpers import (
-    begin_run, end_run,
-    load_ethics_thresholds, blocker_decision,
-    write_blockade_summary, append_changelog,
+    append_changelog,
+    begin_run,
+    blocker_decision,
+    end_run,
     ensure_whatif_never_mutates,
+    load_ethics_thresholds,
+    write_blockade_summary,
 )
+
 
 def gini(values):
     """
@@ -1256,8 +1392,10 @@ def eval_block(rt: Runtime, code_block: str):
     ast_sub = parse_program(code_block)
     execute(rt, ast_sub)
 
+
 def eval_condition(rt, cond_text: str) -> bool:
-    import re, unicodedata
+    import re
+    import unicodedata
 
     # 1) Normalizar unicode (tildes/espacios “raros”, comillas curvas → rectas)
     txt = unicodedata.normalize("NFKC", cond_text).strip()
@@ -1270,6 +1408,7 @@ def eval_condition(rt, cond_text: str) -> bool:
         for line in s.splitlines():
             out.append(line.split("//", 1)[0])
         return "\n".join(out)
+
     txt = _strip_comments(txt)
     txt = re.sub(r"\s+", " ", txt).strip()
 
@@ -1303,7 +1442,7 @@ def eval_condition(rt, cond_text: str) -> bool:
     # kind = m.group(1)  # no lo usamos por ahora
     name = m.group(2)
     attr = m.group(3).lower()
-    op   = m.group(4)
+    op = m.group(4)
     value = float(m.group(5))
 
     # 6) Obtener valor actual
@@ -1313,32 +1452,46 @@ def eval_condition(rt, cond_text: str) -> bool:
         cur = float(rt.measure()[attr])
 
     # 7) Evaluar
-    if op == "<":   return cur < value
-    if op == "<=":  return cur <= value
-    if op == ">":   return cur > value
-    if op == ">=":  return cur >= value
-    if op == "==":  return abs(cur - value) < 1e-9
-    if op == "!=":  return abs(cur - value) > 1e-9
+    if op == "<":
+        return cur < value
+    if op == "<=":
+        return cur <= value
+    if op == ">":
+        return cur > value
+    if op == ">=":
+        return cur >= value
+    if op == "==":
+        return abs(cur - value) < 1e-9
+    if op == "!=":
+        return abs(cur - value) > 1e-9
     print(f"[WARN] Operador no reconocido: {op} → False")
     return False
+
 
 # --- Snapshot del estado para el linter ético v0.2 ---
 def snapshot_state(rt):
     # Confianza por arista
-    edges = {(u, v): float(d.get("trust", 50.0)) for u, v, d in rt.graph.edges(data=True)}
+    edges = {
+        (u, v): float(d.get("trust", 50.0)) for u, v, d in rt.graph.edges(data=True)
+    }
     # Recursos por nodo
-    res_by_node = {n: float(rt.graph.nodes[n].get("resources", 0.0)) for n in rt.graph.nodes()}
+    res_by_node = {
+        n: float(rt.graph.nodes[n].get("resources", 0.0)) for n in rt.graph.nodes()
+    }
     resources = list(res_by_node.values())
     total_res = sum(resources) if resources else 0.0
     top_share = (max(resources) / total_res) if total_res > 0 else 0.0
     # Confianza por nodo
-    node_trust = {n: float(rt.graph.nodes[n].get("trust", 50.0)) for n in rt.graph.nodes()}
+    node_trust = {
+        n: float(rt.graph.nodes[n].get("trust", 50.0)) for n in rt.graph.nodes()
+    }
     # Grados
     degrees = dict(rt.graph.degree())
     # Gini
     g = gini(resources) if resources else 0.0
-    equity = 1.0 - g   # así lo transformás en "equidad" (a mayor desigualdad, menor equity)
-
+    equity = (
+        1.0 - g
+    )  # así lo transformás en "equidad" (a mayor desigualdad, menor equity)
 
     return {
         "edges": edges,
@@ -1349,31 +1502,32 @@ def snapshot_state(rt):
         "degrees": degrees,
     }
 
+
 # --- fin snapshot ---
 def print_alerts(alerts):
-         """
-         Imprime alertas del linter con deduplicación simple.
-         """
-         global ETHICS_ALREADY_EMITTED
-         if ETHICS_ALREADY_EMITTED:
-             return
-         if not alerts:
-             ETHICS_ALREADY_EMITTED = True
-             return
-         seen = set()
-         for a in alerts:
-             base = a.split(" Sugerencia:")[0]
-             if base in seen:
-                 continue
-             seen.add(base)
-             print(a)
-         ETHICS_ALREADY_EMITTED = True
+    """
+    Imprime alertas del linter con deduplicación simple.
+    """
+    global ETHICS_ALREADY_EMITTED
+    if ETHICS_ALREADY_EMITTED:
+        return
+    if not alerts:
+        ETHICS_ALREADY_EMITTED = True
+        return
+    seen = set()
+    for a in alerts:
+        base = a.split(" Sugerencia:")[0]
+        if base in seen:
+            continue
+        seen.add(base)
+        print(a)
+    ETHICS_ALREADY_EMITTED = True
+
 
 # =========================
 # MAIN
 # =========================
 # main.py — flujo único y limpio
-
 
 
 # Importá tus propias piezas del proyecto (ajusta estos imports a tus módulos reales)
@@ -1386,7 +1540,9 @@ def print_alerts(alerts):
 # Si ya definiste execute_final() antes, podés borrar esta función.
 # La dejo acá por si lo necesitás localmente.
 # v0.4 – validación previa con el linter ético
-def execute_final_pre(rt, ast, baseline_metrics, planned_metrics, rules_path="ethics_rules.yaml"):
+def execute_final_pre(
+    rt, ast, baseline_metrics, planned_metrics, rules_path="ethics_rules.yaml"
+):
     """
     Linter ético PRE-ejecución: bloquea si hay violaciones antes de correr el AST.
     """
@@ -1402,6 +1558,8 @@ def execute_final_pre(rt, ast, baseline_metrics, planned_metrics, rules_path="et
 
     rc = execute(rt, ast)
     return rc
+
+
 # v0.2 – cierre posterior a la ejecución
 def execute_final_post(rt, run_id, save_network=True):
     """
@@ -1434,6 +1592,7 @@ def execute_final_post(rt, run_id, save_network=True):
         print("✅ OK (cumple umbrales éticos).")
         return ("OK", [])
 
+
 # =====================================================
 # MAIN — CLI de entrada
 # =====================================================
@@ -1442,16 +1601,25 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("file", nargs="?", default="demo_es.lexo", help="Archivo .lexo")
     parser.add_argument("--lang", choices=["es", "en"], default="es")
-    parser.add_argument("--lint-only", action="store_true",
-                        help="Ejecuta solo el linter y sale 0/1.")
-    parser.add_argument("--no-lint-block", action="store_true",
-                        help="No bloquea ejecución aunque haya violaciones de lint.")
-    parser.add_argument("--no-save-network", action="store_true",
-        help="No guarda network.png/report.* en execute_final.")
-    parser.add_argument("--no-ethics-block", action="store_true",
-        help="Si el blocker ético devuelve BLOCKED, continúa (exit 0).")
+    parser.add_argument(
+        "--lint-only", action="store_true", help="Ejecuta solo el linter y sale 0/1."
+    )
+    parser.add_argument(
+        "--no-lint-block",
+        action="store_true",
+        help="No bloquea ejecución aunque haya violaciones de lint.",
+    )
+    parser.add_argument(
+        "--no-save-network",
+        action="store_true",
+        help="No guarda network.png/report.* en execute_final.",
+    )
+    parser.add_argument(
+        "--no-ethics-block",
+        action="store_true",
+        help="Si el blocker ético devuelve BLOCKED, continúa (exit 0).",
+    )
 
-    
     args = parser.parse_args()
 
     # --- LECTURA ---
@@ -1459,19 +1627,23 @@ if __name__ == "__main__":
         with open(args.file, "r", encoding="utf-8") as f:
             source = f.read()
     except FileNotFoundError:
-        print(f"[ERROR] No existe {args.file}. Corré: python main.py TU_ARCHIVO.lexo --lang=es")
+        print(
+            f"[ERROR] No existe {args.file}. Corré: python main.py TU_ARCHIVO.lexo --lang=es"
+        )
         sys.exit(1)
 
     norm = normalize_source(source, args.lang)
     ast = parse_program(norm)
-    print(f"[DEBUG] leyendo: {args.file}, bytes={len(source)}, sha1={hashlib.sha1(source.encode()).hexdigest()[:10]}")
+    print(
+        f"[DEBUG] leyendo: {args.file}, bytes={len(source)}, sha1={hashlib.sha1(source.encode()).hexdigest()[:10]}"
+    )
     print("[DEBUG] primeras líneas:\n" + "\n".join(source.splitlines()[:6]))
 
     # --- LINTER PRE-EJECUCIÓN ---
 
     # Compatibilidad retro: run_linter(...) usando EthicsLinter v0.4
     # --- LINTER PRE-EJECUCIÓN ---
-  
+
     import re
 
     def _ast_to_ir_for_linter(ast, raw_source: str | None = None) -> dict:
@@ -1490,34 +1662,56 @@ if __name__ == "__main__":
 
         def add_edge(u: str, v: str, tags: list[str] | None = None):
             if u and v:
-                ir["relations"].append({"source": u, "target": v, "tags": list(set(tags or []))})
+                ir["relations"].append(
+                    {"source": u, "target": v, "tags": list(set(tags or []))}
+                )
                 add_node(u)
                 add_node(v)
 
-        text = raw_source if isinstance(raw_source, str) else (str(raw_source) if raw_source is not None else "")
+        text = (
+            raw_source
+            if isinstance(raw_source, str)
+            else (str(raw_source) if raw_source is not None else "")
+        )
 
         if not isinstance(text, str):
             return ir
 
         # Nodos: crear_nodo Tipo("Nombre")
-        for m in re.finditer(r'conectar\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)\s*\{([\s\S]*?)\}', text, flags=re.I):
+        for m in re.finditer(
+            r'conectar\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)\s*\{([\s\S]*?)\}',
+            text,
+            flags=re.I,
+        ):
 
             add_node(m.group(1))
 
         # Relaciones: conectar("A","B") { ... } + tags: [ ... ]
-        for m in re.finditer(r'conectar\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)\s*\{([^}]*)\}', text, flags=re.I):
+        for m in re.finditer(
+            r'conectar\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)\s*\{([^}]*)\}',
+            text,
+            flags=re.I,
+        ):
             u, v, body = m.group(1), m.group(2), m.group(3)
             tags = []
-            tmatch = re.search(r'tags\s*:\s*\[([^\]]*)\]', body, flags=re.I)
+            tmatch = re.search(r"tags\s*:\s*\[([^\]]*)\]", body, flags=re.I)
             if tmatch:
                 raw = tmatch.group(1)
-                tags = [t.strip().strip('"').strip("'") for t in raw.split(",") if t.strip()]
+                tags = [
+                    t.strip().strip('"').strip("'") for t in raw.split(",") if t.strip()
+                ]
             add_edge(u, v, tags)
 
         return ir
 
-    def run_linter(ast, rules_path="ethics_rules.yaml", norm_source=None,
-           baseline_metrics=None, planned_metrics=None, raw_source: str | None = None):
+    def run_linter(
+        ast,
+        rules_path="ethics_rules.yaml",
+        norm_source=None,
+        baseline_metrics=None,
+        planned_metrics=None,
+        raw_source: str | None = None,
+    ):
         """
         Compatibilidad v0.4: construye IR desde el source (raw_source) y ejecuta el PRE-lint.
         Devuelve un LintReport (no una lista).
@@ -1535,17 +1729,26 @@ if __name__ == "__main__":
         ast_ir = _ast_to_ir_for_linter(ast, raw_source=raw_source)
 
         # DEBUG (temporal): confirmar que el extractor ve nodos/edges y care_network
-        
-        care_count = sum(1 for e in ast_ir["relations"] if "care_network" in (e.get("tags") or []))
-        
+
+        care_count = sum(
+            1 for e in ast_ir["relations"] if "care_network" in (e.get("tags") or [])
+        )
+
         linter = EthicsLinter(rules_path)
         ctx = build_lint_context(ast_ir, baseline_metrics, planned_metrics)
         report = linter.run_pre(ctx)  # ← NO llamamos a run_linter otra vez
         return report
 
-    
-    baseline_metrics = {"equity": 70, "trust": 60, "cohesion": 65}   # p.ej. {"equity": 70, "trust": 60, "cohesion": 65}
-    planned_metrics  = {"equity": 60, "trust": 61, "cohesion": 64}   # p.ej. {"equity": 60, "trust": 62, "cohesion": 64}
+    baseline_metrics = {
+        "equity": 70,
+        "trust": 60,
+        "cohesion": 65,
+    }  # p.ej. {"equity": 70, "trust": 60, "cohesion": 65}
+    planned_metrics = {
+        "equity": 60,
+        "trust": 61,
+        "cohesion": 64,
+    }  # p.ej. {"equity": 60, "trust": 62, "cohesion": 64}
 
     # Ejecutar linter (PRE)
     report = run_linter(
@@ -1554,7 +1757,7 @@ if __name__ == "__main__":
         norm_source=None,
         baseline_metrics=baseline_metrics,
         planned_metrics=planned_metrics,
-        raw_source=source,   # 👈 importante
+        raw_source=source,  # 👈 importante
     )
     violations = report.violations
     append_changelog_lint("OK" if not violations else "FAIL", len(violations))
@@ -1572,13 +1775,17 @@ if __name__ == "__main__":
 
     # recién después decidís si bloqueás
     fail_on_lint = True
-    if report.should_block and fail_on_lint and not args.no_lint_block: 
-        print(f"[LINTER] 🛑 {len(violations)} violación(es). Abortando ejecución por política fail_on_lint.")
+    if report.should_block and fail_on_lint and not args.no_lint_block:
+        print(
+            f"[LINTER] 🛑 {len(violations)} violación(es). Abortando ejecución por política fail_on_lint."
+        )
         sys.exit(1)
     # --- PARSEAR ---
-    
+
     if ast is None:
-        print("[ERROR] parse_program devolvió None (revisá indentación y 'return ast').")
+        print(
+            "[ERROR] parse_program devolvió None (revisá indentación y 'return ast')."
+        )
         sys.exit(1)
 
     # --- RUNTIME ---
@@ -1588,16 +1795,21 @@ if __name__ == "__main__":
         execute(rt, ast, finalize=True)
 
         # Post-ejecución (evalúa ética, persiste summary y actualiza changelog)
-        status, fails = execute_final_post(rt, run_id, save_network=not args.no_save_network)
+        status, fails = execute_final_post(
+            rt, run_id, save_network=not args.no_save_network
+        )
 
         # Respeto de --no-ethics-block
         if status == "BLOCKED" and args.no_ethics_block:
-            print("⚠️  [ETHICS] Bloqueo ético anulado por --no-ethics-block (continuando).")
+            print(
+                "⚠️  [ETHICS] Bloqueo ético anulado por --no-ethics-block (continuando)."
+            )
             exit_code = 0
         else:
             exit_code = 0 if status == "OK" else 1
 
         import sys
+
         sys.exit(exit_code)
 
     finally:

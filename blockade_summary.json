@@ -1,0 +1,16 @@
+{
+  "run_id": "run_20251029-220547",
+  "timestamp": "2025-10-29 22:05:48",
+  "metrics": {
+    "trust": 72.17,
+    "cohesion": 67.74,
+    "equity": 75.7
+  },
+  "thresholds": {
+    "min_trust": 60.0,
+    "min_cohesion": 50.0,
+    "min_equity": 60.0
+  },
+  "status": "OK",
+  "fails": []
+}

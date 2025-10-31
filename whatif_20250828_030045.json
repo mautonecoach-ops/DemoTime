@@ -1,0 +1,26 @@
+[
+  {
+    "title": "Mentorías IN Sur",
+    "deltas": {
+      "trust": 1.78,
+      "cohesion": 0.0,
+      "equity": 0.0
+    }
+  },
+  {
+    "title": "Mentorías IN Norte",
+    "deltas": {
+      "trust": 1.78,
+      "cohesion": 0.0,
+      "equity": 0.0
+    }
+  },
+  {
+    "title": "Puentes extra",
+    "deltas": {
+      "cohesion": 5.67,
+      "trust": 0.0,
+      "equity": 0.0
+    }
+  }
+]

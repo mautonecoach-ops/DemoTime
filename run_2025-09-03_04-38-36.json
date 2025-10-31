@@ -1,0 +1,36 @@
+{
+  "run_ts": "2025-09-03_04-38-35",
+  "final_metrics": {
+    "trust": 66.6,
+    "cohesion": 78.95,
+    "equity": 81.97
+  },
+  "ethics_alerts": [
+    "[ETHICS] Un nodo concentra 32.8% de los recursos (> 30%). Sugerencia: redistribuir_recursos(dador_rico, receptor_con_menos, fraction=0.15–0.30)."
+  ],
+  "what_if": [
+    {
+      "title": "Chequeo <30% definitivo",
+      "deltas": {
+        "equity": 0.0,
+        "trust": 0.0,
+        "cohesion": 0.0
+      },
+      "pct": {
+        "equity": 0.0,
+        "trust": 0.0,
+        "cohesion": 0.0
+      },
+      "base": {
+        "trust": 66.6,
+        "cohesion": 78.95,
+        "equity": 81.97
+      }
+    }
+  ],
+  "artifacts": {
+    "network_png": "network_2025-09-03_04-38-35.png",
+    "whatif_json": "whatif_2025-09-03_04-38-35.json",
+    "whatif_csv": "whatif_2025-09-03_04-38-35.csv"
+  }
+}
