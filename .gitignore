@@ -1,20 +1,45 @@
-# Artefactos generados
+# =======================================
+# LEXO — Archivos generados automáticamente
+# =======================================
+
+# Artefactos de simulación y reportes
 network*.png
 report*.csv
 report*.json
 run_*.json
 whatif*.csv
 whatif*.json
+blockade_summary.json
+lint_summary.json
 
-# Cachés y entornos Python
+# Demos y temporales
+demo_esdestress*.lexo
+*.tmp
+*.bak
+
+# =======================================
+# Python
+# =======================================
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Entornos virtuales
 .env
 .venv
 venv/
+ENV/
 
-# Replit
+# =======================================
+# Replit y CI
+# =======================================
 *.repl
 .replit
+.idea/
+.vscode/
+
+# =======================================
+# Otros
+# =======================================
+.DS_Store

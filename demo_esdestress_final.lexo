@@ -1,0 +1,87 @@
+// DEMO ESDestress — Aplicación final del “Paquete moderado”
+
+// ===== Nodos =====
+crear_nodo comunidad("Comunidad") { confianza: 58, resources: 20 }
+crear_nodo persona("Ana")   { confianza: 53, energía: 70, resources: 1 }
+crear_nodo persona("Beto")  { confianza: 52, energía: 65, resources: 1 }
+crear_nodo persona("Carla") { confianza: 56, energía: 75, resources: 2 }
+crear_nodo persona("Diego") { confianza: 50, energía: 60, resources: 1 }
+
+conectar("Ana","Comunidad")   { confianza: 54, intensidad: MEDIA }
+conectar("Beto","Comunidad")  { confianza: 54, intensidad: MEDIA }
+conectar("Carla","Comunidad") { confianza: 56, intensidad: MEDIA }
+conectar("Diego","Comunidad") { confianza: 52, intensidad: BAJA }
+
+intervenir_si (comunidad("Comunidad").confianza < 65) {
+  lanzar_iniciativa "Encuentro breve" {
+    target: "Comunidad",
+    trust_boost: 10
+  }
+} contribuir_sino {
+  fortalecer_vínculos("Comunidad") { intensidad: MEDIA }
+}
+
+fortalecer_vínculos("Ana")  { intensidad: MEDIA }
+fortalecer_vínculos("Beto") { intensidad: MEDIA }
+
+cuidar_red("Comunidad") {
+  intensity: MEDIA,
+  plan_mitigación: "mentorias 1:1 + asamblea breve"
+}
+
+conectar("Ana","Carla")   { confianza: 54, intensidad: MEDIA }
+conectar("Diego","Carla") { confianza: 53, intensidad: BAJA }
+
+redistribuir_recursos("Comunidad","Ana")   { fraction: 0.04, min_left: 8.2 }
+redistribuir_recursos("Comunidad","Diego") { fraction: 0.04, min_left: 8.2 }
+
+redistribuir_recursos("Comunidad","Beto")  { fraction: 0.12, min_left: 10.5 }
+redistribuir_recursos("Comunidad","Carla") { fraction: 0.08,  min_left: 10.5 }
+
+conectar("Ana","Carla")      { confianza: 55, intensidad: MEDIA }
+conectar("Beto","Comunidad") { confianza: 56, intensidad: MEDIA }
+redistribuir_recursos("Comunidad","Beto")  { fraction: 0.10, min_left: 10.5 }
+redistribuir_recursos("Comunidad","Carla") { fraction: 0.08,  min_left: 10.5 }
+lanzar_iniciativa "Encuentro breve" { target: "Comunidad", trust_boost: 8 }
+
+fortalecer_vínculos("Diego") { intensidad: ALTA }
+conectar("Diego","Ana")   { confianza: 55, intensidad: MEDIA }
+conectar("Diego","Beto")  { confianza: 54, intensidad: BAJA }
+redistribuir_recursos("Comunidad","Diego") { fraction: 0.12, min_left: 9.5 }
+redistribuir_recursos("Comunidad","Ana")   { fraction: 0.08, min_left: 9.0 }
+redistribuir_recursos("Comunidad","Beto")  { fraction: 0.06, min_left: 9.0 }
+lanzar_iniciativa "Jornada abierta" { target: "Comunidad", trust_boost: 6 }
+
+fortalecer_vínculos("Ana")  { intensidad: MEDIA }
+fortalecer_vínculos("Beto") { intensidad: MEDIA }
+redistribuir_recursos("Comunidad","Diego") { fraction: 0.06, min_left: 8.5 }
+redistribuir_recursos("Comunidad","Ana")   { fraction: 0.05, min_left: 8.5 }
+redistribuir_recursos("Comunidad","Beto")  { fraction: 0.04, min_left: 8.5 }
+
+redistribuir_recursos("Comunidad","Ana")   { fraction: 0.040, min_left: 8.2 }
+redistribuir_recursos("Comunidad","Diego") { fraction: 0.040, min_left: 8.2 }
+
+// ——— Bajada definitiva <30% con piso 8.0 ———
+//redistribuir_recursos("Comunidad","Diego") { fraction: 0.03, min_left: 8.0 }
+//redistribuir_recursos("Comunidad","Ana")   { fraction: 0.02, min_left: 8.0 }
+// si al correr quedás en 30–31%, agregar SOLO UNO:
+//redistribuir_recursos("Comunidad","Beto")  { fraction: 0.02, min_left: 8.0 }
+
+// Paso final: bajar participación de Comunidad por debajo de 30% (mueve ~0.55–0.65)
+//redistribuir_recursos("Comunidad","Diego") { fraction: 0.03, min_left: 8.0 }
+//redistribuir_recursos("Comunidad","Ana")   { fraction: 0.02, min_left: 8.0 }
+//redistribuir_recursos("Comunidad","Beto")  { fraction: 0.02, min_left: 8.0 }
+// Micro-impulso adicional solo si queda ~30–31%
+redistribuir_recursos("Comunidad","Diego") { fraction: 0.02, min_left: 8.0 }
+
+// Cierre <30% (firme)
+//redistribuir_recursos("Comunidad","Diego") { fraction: 0.04, min_left: 8.0 }
+//redistribuir_recursos("Comunidad","Ana")   { fraction: 0.03, min_left: 8.0 }
+//redistribuir_recursos("Comunidad","Beto")  { fraction: 0.02, min_left: 8.0 }
+
+// Cierre definitivo <30% (mueve ~0.55 u total; deja a Comunidad ≤ 7.5)
+redistribuir_recursos("Comunidad","Diego") { fraction: 0.05, min_left: 7.5 }  // ~0.40 u
+redistribuir_recursos("Comunidad","Ana")   { fraction: 0.02, min_left: 7.5 }  // ~0.15 u
+
+medir_impacto comunidad("Comunidad") en dimensión("confianza","cohesión","equidad")
+mostrar_red

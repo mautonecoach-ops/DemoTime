@@ -1,0 +1,96 @@
+// DEMO ESDestress — Recuperación progresiva (confianza + equidad)
+
+// ===== Nodos =====
+crear_nodo comunidad("Comunidad") { confianza: 58, resources: 20 }
+
+crear_nodo persona("Ana")   { confianza: 53, energía: 70, resources: 1 }
+crear_nodo persona("Beto")  { confianza: 52, energía: 65, resources: 1 }
+crear_nodo persona("Carla") { confianza: 56, energía: 75, resources: 2 }
+crear_nodo persona("Diego") { confianza: 50, energía: 60, resources: 1 }
+
+// ===== Enlaces iniciales (cohesión base moderada-baja) =====
+conectar("Ana","Comunidad")   { confianza: 54, intensidad: MEDIA }
+conectar("Beto","Comunidad")  { confianza: 54, intensidad: MEDIA }
+conectar("Carla","Comunidad") { confianza: 56, intensidad: MEDIA }
+conectar("Diego","Comunidad") { confianza: 52, intensidad: BAJA  }
+
+// ===== Política condicional (impulso controlado de confianza) =====
+intervenir_si (comunidad("Comunidad").confianza < 65) {
+  lanzar_iniciativa "Encuentro breve" {
+    target: "Comunidad",
+    trust_boost: 10
+  }
+} contribuir_sino {
+  // mantenimiento suave si ya estamos cerca del umbral
+  fortalecer_vínculos("Comunidad") { intensidad: MEDIA }
+}
+
+// ===== Acciones focalizadas (desestrés progresivo) =====
+// 1) Mentorías suaves para subir el piso de <55
+fortalecer_vínculos("Ana")  { intensidad: MEDIA }
+fortalecer_vínculos("Beto") { intensidad: MEDIA }
+
+// 2) Cuidado de red (sin overshoot)
+cuidar_red("Comunidad") {
+  intensity: MEDIA,
+  plan_mitigación: "mentorias 1:1 + asamblea breve"
+}
+
+// 3) Triángulos “baratos” para empujar cohesión
+conectar("Ana","Carla")      { confianza: 54, intensidad: MEDIA }
+conectar("Diego","Carla")    { confianza: 53, intensidad: BAJA  }
+
+// 4) Redistribución en dos fases (suave → moderada), con min_left para no vaciar
+//    Fase 1 (suave): aliviar concentración sin cambios bruscos
+redistribuir_recursos("Comunidad","Ana")   { fraction: 0.10, min_left: 12 }
+redistribuir_recursos("Comunidad","Diego") { fraction: 0.10, min_left: 12 }
+
+//    Fase 2 (moderada): ajuste fino manteniendo colchón en la comunidad
+redistribuir_recursos("Comunidad","Beto")  { fraction: 0.12, min_left: 10.5 }
+redistribuir_recursos("Comunidad","Carla") { fraction: 0.08,  min_left: 10.5 }
+
+// ===== WHAT_IF — Comparar paquetes antes de aplicar “de verdad” =====
+what_if "Mentorías suaves" {
+  apply {
+    fortalecer_vínculos("Ana")  { intensidad: MEDIA }
+    fortalecer_vínculos("Beto") { intensidad: MEDIA }
+  }
+  compare: ["trust","cohesion","equity"]
+}
+
+what_if "Redistribución mínima" {
+  apply {
+    redistribuir_recursos("Comunidad","Ana")   { fraction: 0.08, min_left: 12 }
+    redistribuir_recursos("Comunidad","Diego") { fraction: 0.06, min_left: 12 }
+  }
+  compare: ["equity","trust","cohesion"]
+}
+
+what_if "Paquete suave" {
+  apply {
+    fortalecer_vínculos("Ana")  { intensidad: MEDIA }
+    fortalecer_vínculos("Beto") { intensidad: MEDIA }
+    conectar("Ana","Carla")      { confianza: 54, intensidad: MEDIA }
+    redistribuir_recursos("Comunidad","Ana")   { fraction: 0.08, min_left: 11 }
+    redistribuir_recursos("Comunidad","Diego") { fraction: 0.06, min_left: 11 }
+  }
+  compare: ["trust","cohesion","equity"]
+}
+
+what_if "Paquete moderado" {
+  apply {
+    fortalecer_vínculos("Ana")  { intensidad: MEDIA }
+    fortalecer_vínculos("Beto") { intensidad: MEDIA }
+    conectar("Ana","Carla")      { confianza: 55, intensidad: MEDIA }
+    conectar("Beto","Comunidad") { confianza: 56, intensidad: MEDIA }
+    redistribuir_recursos("Comunidad","Beto")  { fraction: 0.10, min_left: 10.5 }
+    redistribuir_recursos("Comunidad","Carla") { fraction: 0.08,  min_left: 10.5 }
+    lanzar_iniciativa "Encuentro breve" { target: "Comunidad", trust_boost: 8 }
+  }
+  compare: ["trust","cohesion","equity"]
+}
+
+// ===== Tabla comparativa, métricas y visual =====
+SHOW_WHAT_IF_TABLE ["trust","cohesion","equity"]
+medir_impacto comunidad("Comunidad") en dimensión("confianza","cohesión","equidad")
+mostrar_red
