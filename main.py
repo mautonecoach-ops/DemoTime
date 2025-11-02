@@ -4,7 +4,6 @@
 # Flags globales de control
 # IMPORTS
 # Standard library
-import os
 import sys
 import re
 import json
@@ -17,6 +16,8 @@ import argparse
 import math
 import warnings
 import unicodedata
+import os
+os.environ["MPLBACKEND"] = "Agg"
 
 import networkx as nx
 import matplotlib
@@ -34,17 +35,12 @@ from core_helpers import (
     load_ethics_thresholds,
     write_blockade_summary,
 )
-
-warnings.filterwarnings(
-    "ignore",
-
 # Silenciar warning de matplotlib/tight_layout
 warnings.filterwarnings(
     "ignore",
     message="This figure includes Axes that are not compatible with tight_layout",
     category=UserWarning,
 )
-
 RUN_TS = time.strftime("%Y-%m-%d %H:%M:%S")
 random.seed(42)
 
@@ -52,7 +48,6 @@ DEBUG_MAIN = False       # prints en main()
 DEBUG_ACTIONS = False    
 DEBUG_MEASURE = False    # prints en métricas (Runtime.measure)
 DEBUG_WHATIF = False     
-
 
 # Globals y helpers ETHICS (mínimo)
 
