@@ -36,7 +36,7 @@ from core_helpers import (
 
 warnings.filterwarnings(
     "ignore",
-import warnings
+)
 import time
 import random
 
